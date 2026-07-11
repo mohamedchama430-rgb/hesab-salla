@@ -1,9 +1,9 @@
 const CACHE_NAME = "hesab-salla-v1";
 const CORE_ASSETS = [
-  "/index.html",
-  "/manifest.json",
-  "/icon-192.png",
-  "/icon-512.png"
+  "index.html",
+  "manifest.json",
+  "icon-192.png",
+  "icon-512.png"
 ];
 
 self.addEventListener("install", function (event) {

@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="حساب الصالة" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#15181A" />
+<title>حساب الصالة</title>
+<link rel="manifest" href="/manifest.json" />
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@700;800;900&family=Tajawal:wght@400;500;700&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #15181A;
+    --panel: #1E2225;
+    --panelAlt: #20262A;
+    --border: #31373C;
+    --borderSoft: #282E32;
+    --text: #ECEDEE;
+    --textDim: #8B939A;
+    --amber: #D7FF4B;
+    --teal: #2BE0A6;
+    --red: #C6564F;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Tajawal', 'Segoe UI', Tahoma, Geneva, Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mono { font-family: 'Roboto Mono', 'Courier New', monospace; }
+  h1, h3, .display-font, .worker-tab, .empty p.title, .note-author {
+    font-family: 'Cairo', 'Tajawal', sans-serif;
+  }
+  input::placeholder { color: var(--textDim); opacity: 0.6; }
+  button { cursor: pointer; -webkit-appearance: none; appearance: none; }
+  input, button, select { font-family: inherit; }
+
+  #app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* header */
+  .header {
+    flex-shrink: 0;
+    padding: 14px 16px 12px;
+    background: repeating-linear-gradient(135deg, var(--panel) 0px, var(--panel) 2px, var(--bg) 2px, var(--bg) 4px);
+    border-bottom: 1px solid var(--border);
+  }
+  .header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .header h1 { font-size: 21px; font-weight: 900; margin: 0; letter-spacing: -0.4px; white-space: nowrap; }
+  .header .sub { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--amber); margin: 3px 0 0; }
+  .header .sub::before { content: ""; width: 14px; height: 3px; border-radius: 3px; background: var(--amber); display: inline-block; }
+  .header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+  .add-btn, .icon-btn {
+    width: 44px; height: 44px; border-radius: 999px;
+    background: var(--amber); color: #141B05; border: none;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    animation: pulseGlow 2.4s ease-in-out infinite;
+  }
+  .icon-btn.ghost {
+    background: var(--panelAlt); color: var(--text); border: 1px solid var(--border);
+    animation: none;
+  }
+  .icon-btn.ghost.active-toggle { background: rgba(215,255,75,0.14); color: var(--amber); border-color: var(--amber); }
+  .icon-btn { position: relative; }
+  .notif-dot {
+    position: absolute; top: 4px; right: 4px; width: 10px; height: 10px; border-radius: 999px;
+    background: var(--red); border: 2px solid var(--bg);
+  }
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(215,255,75,0.35); }
+    50% { box-shadow: 0 0 0 6px rgba(232,163,61,0); }
+  }
+  .slide-up { animation: slideUp 0.18s ease-out; }
+  @keyframes slideUp {
+    from { transform: translateY(8px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .add-row { display: none; align-items: center; gap: 8px; margin-top: 12px; }
+  .add-row.open { display: flex; }
+  .add-row input {
+    flex: 1; border-radius: 10px; padding: 10px 12px; font-size: 16px; font-weight: 600;
+    background: var(--panelAlt); border: 1px solid var(--amber); color: var(--text); outline: none;
+  }
+  .add-row .confirm-btn {
+    width: 40px; height: 40px; border-radius: 10px; background: var(--teal); color: #04211C;
+    border: none; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+
+  /* worker tabs */
+  .worker-tabs { display: flex; gap: 6px; margin-top: 11px; overflow-x: auto; }
+  .worker-tab {
+    flex-shrink: 0; padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 700;
+    background: var(--panelAlt); border: 1px solid var(--border); color: var(--textDim);
+  }
+  .worker-tab.active { background: var(--amber); color: #141B05; border-color: var(--amber); }
+  .worker-tab.disabled { opacity: 0.4; }
+  .ro-banner {
+    display: flex; align-items: center; gap: 6px; margin: 12px 16px 0; padding: 8px 12px;
+    border-radius: 10px; background: rgba(215,255,75,0.12); border: 1px solid rgba(215,255,75,0.3);
+    color: var(--amber); font-size: 12px; font-weight: 700;
+  }
+
+  /* main view switcher (calculator / products) */
+  .view-tabs { display: flex; gap: 8px; margin-top: 12px; }
+  .view-tab {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
+    padding: 11px 10px; border-radius: 12px; font-size: 14px; font-weight: 800;
+    background: var(--panelAlt); border: 1px solid var(--border); color: var(--textDim);
+  }
+  .view-tab.active { background: var(--amber); color: #141B05; border-color: var(--amber); }
+
+  /* product list */
+  .list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; min-height: 0; padding: 16px; }
+  .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 64px 24px; }
+  .empty-circle {
+    width: 56px; height: 56px; border-radius: 999px; border: 2px dashed var(--border);
+    display: flex; align-items: center; justify-content: center; margin-bottom: 12px; color: var(--textDim);
+  }
+  .empty p.title { font-weight: 700; color: var(--text); margin: 0; }
+  .empty p.sub { font-size: 14px; color: var(--textDim); margin: 4px 0 0; }
+
+  .card {
+    position: relative; border-radius: 14px; padding: 12px; margin-bottom: 12px;
+    background: var(--panel); border: 1px solid var(--border);
+  }
+  .card .rivet { position: absolute; width: 6px; height: 6px; border-radius: 999px; top: 6px; background: var(--borderSoft); }
+  .card .rivet.r { right: 6px; } .card .rivet.l { left: 6px; }
+  .card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; padding: 0 4px; }
+  .card-top h3 { flex: 1; min-width: 0; font-size: 16px; font-weight: 700; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-inline-end: 4px; }
+  .card-sum {
+    flex-shrink: 0; display: flex; align-items: center; gap: 5px;
+    padding: 6px 12px; border-radius: 999px; background: var(--panelAlt); border: 1px solid var(--border);
+    font-size: 12px; font-weight: 600; color: var(--textDim); white-space: nowrap;
+  }
+  .card-sum b { font-size: 14px; font-weight: 800; color: var(--amber); direction: ltr; }
+  .del-btn { background: none; border: none; color: var(--textDim); padding: 6px; border-radius: 8px; display: flex; }
+  .confirm-del { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .confirm-del .yes {
+    display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700;
+    padding: 4px 8px; border-radius: 8px; background: var(--red); color: #fff; border: none;
+  }
+  .confirm-del .no { padding: 4px; border-radius: 8px; background: var(--panelAlt); color: var(--textDim); border: none; display: flex; }
+
+  .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .field-label { font-size: 12px; font-weight: 600; color: var(--textDim); margin-bottom: 4px; padding: 0 4px; }
+  .value-field {
+    width: 100%; text-align: left; border-radius: 10px; padding: 8px 12px; font-size: 17px; font-weight: 700;
+    background: var(--panelAlt); border: 1px solid var(--border); color: var(--textDim); outline: none;
+    direction: ltr;
+  }
+  .value-field.filled { color: var(--amber); }
+  .value-field:focus { border-color: var(--amber); }
+  .value-field.ro { pointer-events: none; opacity: 0.7; }
+
+  /* history */
+  .history { display: none; padding: 12px 16px 8px; background: var(--panel); border: 1px solid var(--border); border-radius: 16px; margin-top: 12px; }
+  .history.open { display: block; }
+  .history-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .history-top span { font-size: 12px; font-weight: 700; color: var(--textDim); }
+  .clear-btn { display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--red); background: none; border: none; }
+  .history-empty { font-size: 14px; text-align: center; padding: 16px 0; color: var(--textDim); }
+  .history-item {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: 8px; border-radius: 8px; background: none; border: none; border-bottom: 1px solid var(--borderSoft);
+    text-align: left;
+  }
+  .history-item .expr { font-size: 14px; color: var(--textDim); direction: ltr; }
+  .history-item .res { font-size: 14px; font-weight: 700; color: var(--amber); direction: ltr; }
+
+  /* calculator */
+  .calc-page { padding: 0 16px 16px; display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .calc-wrap { background: var(--bg); flex-shrink: 0; padding: 16px 16px 8px; }
+  .calc-box { border-radius: 20px; padding: 22px 20px; background: #0F1113; border: 1px solid var(--border); box-shadow: inset 0 2px 6px rgba(0,0,0,0.5); }
+  .calc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .calc-top span { font-size: 13px; font-weight: 700; color: var(--textDim); }
+  .calc-top-actions { display: flex; align-items: center; gap: 6px; }
+  .hist-toggle { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; padding: 7px 12px; border-radius: 10px; background: none; border: none; color: var(--textDim); }
+  .hist-toggle.active { color: var(--amber); background: rgba(215,255,75,0.12); }
+  .lamp-toggle { color: var(--amber); }
+  .calc-display { text-align: right; font-size: 46px; font-weight: 800; margin-bottom: 18px; color: var(--amber); direction: ltr; min-height: 56px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .calc-row { display: flex; align-items: center; gap: 10px; }
+  .calc-row input {
+    flex: 1; border-radius: 12px; padding: 16px 16px; font-size: 21px; direction: ltr;
+    background: var(--panelAlt); border: 1px solid var(--border); color: var(--text); outline: none;
+  }
+  .sq-btn { width: 54px; height: 54px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: none; }
+  .sq-btn.clear { background: var(--panelAlt); color: var(--textDim); border: 1px solid var(--border); }
+  .sq-btn.equals { background: var(--amber); color: #141B05; font-weight: 700; font-size: 22px; }
+
+  /* helper (money counting) page */
+  .helper-back-btn {
+    width: 44px; height: 44px; border-radius: 999px;
+    background: var(--panelAlt); color: var(--text); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .helper-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 4px; border-bottom: 1px solid var(--borderSoft);
+  }
+  .helper-row:last-child { border-bottom: none; }
+  .helper-denom {
+    width: 54px; flex-shrink: 0; text-align: center; font-size: 15px; font-weight: 700;
+    background: var(--panelAlt); border: 1px solid var(--border); border-radius: 10px; padding: 8px 4px;
+    color: var(--text); direction: ltr;
+  }
+  .helper-mul, .helper-eq { color: var(--textDim); font-size: 13px; flex-shrink: 0; }
+  .helper-input {
+    flex: 1; min-width: 0; text-align: center; border-radius: 10px; padding: 8px 6px; font-size: 16px; font-weight: 700;
+    background: var(--panelAlt); border: 1px solid var(--border); color: var(--amber); outline: none; direction: ltr;
+  }
+  .helper-input:focus { border-color: var(--amber); }
+  .helper-result {
+    width: 92px; flex-shrink: 0; text-align: left; font-size: 15px; font-weight: 700; color: var(--teal);
+    direction: ltr; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .helper-total-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding: 0 2px; }
+  .helper-total-row span:first-child { font-size: 13px; font-weight: 700; color: var(--textDim); }
+  .helper-total-value { font-size: 22px; font-weight: 800; color: var(--amber); direction: ltr; }
+  .helper-actions { display: flex; gap: 10px; }
+  .helper-cancel, .helper-add {
+    flex: 1; padding: 12px; border-radius: 12px; font-weight: 700; font-size: 15px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .helper-cancel { background: var(--panelAlt); color: var(--red); border: 1px solid var(--border); }
+  .helper-add { background: var(--teal); color: #04211C; border: none; font-weight: 800; }
+
+  /* custom keypad */
+  .keypad-wrap {
+    flex-shrink: 0; z-index: 50;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: var(--bg); border-top: 1px solid var(--border);
+    box-shadow: 0 -6px 20px rgba(0,0,0,0.45);
+  }
+  .keypad-box { border-radius: 14px; padding: 10px; background: #0F1113; border: 1px solid var(--border); }
+  .keypad-top { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 10px; }
+  .keypad-top span { font-size: 11px; font-weight: 600; color: var(--textDim); }
+  .keypad-done { display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 8px; background: var(--teal); color: #04211C; border: none; }
+  .keypad-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .kp-btn {
+    height: 48px; border-radius: 10px; border: 1px solid var(--border); background: var(--panelAlt);
+    color: var(--text); font-size: 19px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  }
+  .kp-btn:active { background: var(--border); }
+  .kp-btn.kp-op { color: var(--amber); }
+  .kp-btn.kp-clear { color: var(--red); }
+  .kp-btn.kp-back { color: var(--textDim); }
+  .kp-btn.kp-equals { background: var(--amber); color: #141B05; }
+
+  /* auth screen */
+  .auth-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 24px; }
+  .auth-box { max-width: 360px; margin: 0 auto; width: 100%; }
+  .auth-box h1 { font-size: 22px; font-weight: 800; text-align: center; margin: 0 0 4px; }
+  .auth-box .sub { font-size: 13px; color: var(--textDim); text-align: center; margin: 0 0 28px; }
+  .auth-field { margin-bottom: 14px; }
+  .auth-field label { display: block; font-size: 13px; font-weight: 600; color: var(--textDim); margin-bottom: 6px; }
+  .auth-field select, .auth-field input {
+    width: 100%; padding: 12px 14px; border-radius: 10px; font-size: 16px;
+    background: var(--panelAlt); border: 1px solid var(--border); color: var(--text); outline: none;
+  }
+  .auth-field select:focus, .auth-field input:focus { border-color: var(--amber); }
+  .auth-submit {
+    width: 100%; padding: 13px; border-radius: 12px; font-weight: 800; font-size: 15px;
+    background: var(--amber); color: #141B05; border: none; margin-top: 6px;
+  }
+  .auth-submit:disabled { opacity: 0.6; }
+  .auth-error { color: var(--red); font-size: 13px; text-align: center; margin-top: 12px; font-weight: 600; }
+  .auth-loading { text-align: center; color: var(--textDim); padding: 40px; }
+
+  /* notes page */
+  .notes-list { padding: 0 16px; }
+  .note-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+  .note-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .note-author { font-size: 12px; font-weight: 800; color: var(--amber); }
+  .note-time { font-size: 11px; color: var(--textDim); }
+  .note-text { font-size: 15px; line-height: 1.5; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+  .note-compose { padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); background: var(--bg); border-top: 1px solid var(--border); }
+  .note-compose-row { display: flex; align-items: flex-end; gap: 8px; }
+  .note-compose textarea {
+    flex: 1; border-radius: 12px; padding: 10px 12px; font-size: 15px; resize: none;
+    background: var(--panelAlt); border: 1px solid var(--border); color: var(--text); outline: none;
+    max-height: 100px; font-family: inherit;
+  }
+  .note-compose textarea:focus { border-color: var(--amber); }
+  .note-send-btn {
+    width: 44px; height: 44px; border-radius: 999px; background: var(--teal); color: #04211C;
+    border: none; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .note-send-btn:disabled { opacity: 0.4; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script>
+(function () {
+  "use strict";
+
+  // ==========================================================================
+  // إعدادات Firebase - بدّل هاد المعطيات بلي غادي تاخد من Firebase Console
+  // (Project settings -> عام -> "Your apps" -> Firebase SDK snippet -> Config)
+  // ==========================================================================
+  var firebaseConfig = {
+    apiKey: "AIzaSyBWpKPUF1O-MR9TAeED6dJ6B8k7vcilbnc",
+    authDomain: "sallgymhouse15eme.firebaseapp.com",
+    projectId: "sallgymhouse15eme",
+    storageBucket: "sallgymhouse15eme.firebasestorage.app",
+    messagingSenderId: "107819940333",
+    appId: "1:107819940333:web:aca80fe0b279b413f78fe4",
+    measurementId: "G-CGZ7W8RH96"
+  };
+
+  // لائحة الخدامين الثلاثة. بدّل الأسماء بحسب لي بغيتي تبان فالتطبيق.
+  // الإيميلات هادو ماشي حقيقيين، غير معرفات باش نديرو بيهم الدخول فـFirebase Authentication.
+  // خاصك تزيد 3 مستخدمين بهاد الإيميلات (وكلمات سر لي كل واحد كيختارها) من
+  // Firebase Console -> Authentication -> Users -> Add user.
+  var WORKERS = [
+    { name: "شمسو", email: "chamso@hasbatsalla.app" },
+    { name: "محمد", email: "mohamed@hasbatsalla.app" },
+    { name: "عبدوهاب", email: "abdelouahab@hasbatsalla.app" }
+  ];
+  // ==========================================================================
+
+  firebase.initializeApp(firebaseConfig);
+  var auth = firebase.auth();
+  var db = firebase.firestore();
+  try { db.enablePersistence({ synchronizeTabs: true }).catch(function () {}); } catch (e) {}
+
+  var serverTimestamp = firebase.firestore.FieldValue.serverTimestamp;
+
+  // ---------- state ----------
+  var state = {
+    authState: "loading", // loading | out | in
+    authError: "",
+    authBusy: false,
+    loginName: WORKERS[0].name,
+    loginPassword: "",
+
+    myName: null,
+    myUid: null,
+    directory: {}, // name -> uid, once each worker has logged in at least once
+
+    viewingName: null, // whose data is currently shown
+    viewingUid: null,
+    isReadOnly: false,
+    workerTabsOpen: false,
+    activeView: "calc", // "calc" | "products"
+
+    products: [],
+    history: [],
+    adding: false,
+    newName: "",
+    calcExpr: "",
+    calcDisplay: "0",
+    historyOpen: false,
+    historyPageOpen: false,
+    confirmDeleteId: null,
+    keypadTarget: null,
+    kpBuffer: "",
+    helperOpen: false,
+    helperValues: {},
+
+    notesOpen: false,
+    notes: [],
+    noteDraft: "",
+    hasUnreadNotes: false,
+  };
+
+  var HELPER_DENOMS = [5, 10, 20, 50, 100, 200, 500, 1000, 2000];
+
+  var unsubProducts = null;
+  var unsubHistory = null;
+  var unsubDirectory = null;
+  var unsubNotes = null;
+
+  function notesSeenKey() { return "hasbatSalla_notesSeen_" + (state.myUid || ""); }
+  function getNotesLastSeen() {
+    try { return parseInt(localStorage.getItem(notesSeenKey()) || "0", 10); } catch (e) { return 0; }
+  }
+  function setNotesLastSeen(ts) {
+    try { localStorage.setItem(notesSeenKey(), String(ts)); } catch (e) {}
+  }
+  function markNotesSeen() {
+    setNotesLastSeen(Date.now());
+    state.hasUnreadNotes = false;
+  }
+
+  function workerByName(name) {
+    for (var i = 0; i < WORKERS.length; i++) if (WORKERS[i].name === name) return WORKERS[i];
+    return null;
+  }
+
+  // ---------- firestore paths ----------
+  function productsCol(uid) { return db.collection("users").doc(uid).collection("products"); }
+  function historyCol(uid) { return db.collection("users").doc(uid).collection("history"); }
+  function notesCol() { return db.collection("sharedNotes"); }
+  function directoryDoc() { return db.collection("publicProfiles").doc("directory"); }
+
+  // ---------- helpers ----------
+  function arabicToWesternDigits(str) {
+    var map = { "٠":"0","١":"1","٢":"2","٣":"3","٤":"4","٥":"5","٦":"6","٧":"7","٨":"8","٩":"9" };
+    return str.replace(/[٠-٩]/g, function (d) { return map[d]; });
+  }
+  function evaluateExpr(raw) {
+    if (raw === null || raw === undefined) return null;
+    var s = String(raw).trim();
+    if (!s) return null;
+    s = arabicToWesternDigits(s);
+    s = s.replace(/×/g, "*").replace(/[xX]/g, "*").replace(/÷/g, "/").replace(/,/g, ".");
+    s = s.replace(/=$/, "");
+    if (!/^[0-9+\-*/().\s]+$/.test(s)) return null;
+    if (!/[0-9]/.test(s)) return null;
+    try {
+      var result = Function('"use strict"; return (' + s + ")")();
+      if (typeof result !== "number" || !isFinite(result)) return null;
+      return Math.round(result * 100) / 100;
+    } catch (e) {
+      return null;
+    }
+  }
+  function formatNumber(n) {
+    if (n === null || n === undefined || n === "") return "";
+    var num = typeof n === "number" ? n : parseFloat(n);
+    if (isNaN(num)) return String(n);
+    if (Number.isInteger(num)) return num.toLocaleString("en-US");
+    return num.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  }
+  function esc(str) {
+    var d = document.createElement("div");
+    d.textContent = str == null ? "" : String(str);
+    return d.innerHTML;
+  }
+  function timeAgo(ts) {
+    if (!ts || !ts.toDate) return "";
+    var d = ts.toDate();
+    var diff = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (diff < 60) return "الآن";
+    if (diff < 3600) return Math.floor(diff / 60) + " د";
+    if (diff < 86400) return Math.floor(diff / 3600) + " سا";
+    return d.toLocaleDateString("ar-MA", { day: "numeric", month: "short" });
+  }
+  function fieldValue(p, field) {
+    if (state.keypadTarget && state.keypadTarget.type === "product" &&
+        state.keypadTarget.id === p.id && state.keypadTarget.field === field) {
+      return state.kpBuffer;
+    }
+    return p[field];
+  }
+  function commitProductField(target, buffer) {
+    if (state.isReadOnly) return;
+    var result = evaluateExpr(buffer);
+    var newVal;
+    if (result !== null) newVal = String(result);
+    else if (buffer.trim() === "") newVal = "";
+    else newVal = buffer;
+    var patch = {};
+    patch[target.field] = newVal;
+    productsCol(state.viewingUid).doc(target.id).update(patch).catch(function (e) { console.error(e); });
+  }
+
+  function helperFieldValue(denom) {
+    var key = String(denom);
+    if (state.keypadTarget && state.keypadTarget.type === "helper" && state.keypadTarget.field === key) {
+      return state.kpBuffer;
+    }
+    return state.helperValues[key] || "";
+  }
+  function commitHelperField(target, buffer) {
+    var raw = buffer;
+    var result = evaluateExpr(raw);
+    var newVal;
+    if (result !== null) newVal = String(result);
+    else if (raw.trim() === "") newVal = "";
+    else newVal = raw;
+    state.helperValues[target.field] = newVal;
+  }
+  function computeHelperTotal() {
+    var total = 0;
+    HELPER_DENOMS.forEach(function (d) {
+      var count = evaluateExpr(helperFieldValue(d));
+      if (count === null) count = 0;
+      total += count * d;
+    });
+    return total;
+  }
+  function openHelper() {
+    if (state.isReadOnly) return;
+    if (state.keypadTarget && state.keypadTarget.type === "product") {
+      commitProductField(state.keypadTarget, state.kpBuffer);
+    }
+    state.keypadTarget = null;
+    state.kpBuffer = "";
+    state.historyOpen = false;
+    state.helperValues = {};
+    state.helperOpen = true;
+    render();
+  }
+  function cancelHelper() {
+    state.keypadTarget = null;
+    state.kpBuffer = "";
+    state.helperOpen = false;
+    state.helperValues = {};
+    render();
+  }
+  function confirmHelperAdd() {
+    if (state.keypadTarget && state.keypadTarget.type === "helper") {
+      commitHelperField(state.keypadTarget, state.kpBuffer);
+    }
+    var total = computeHelperTotal();
+    state.keypadTarget = null;
+    state.kpBuffer = "";
+    state.helperOpen = false;
+    state.helperValues = {};
+    state.calcExpr = String(total);
+    render();
+  }
+
+  // ---------- inline svg icons ----------
+  var ICONS = {
+    plus: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+    x: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    check: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    trash: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>',
+    history: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>',
+    eraser: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16c-.5-.5-.5-1.5 0-2l10-10c.5-.5 1.5-.5 2 0l6 6c.5.5.5 1.5 0 2Z"/><path d="M6 12l6 6"/></svg>',
+    lamp: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A6 6 0 1 0 6 11a6 6 0 0 0 3.5 5.5c.5.4.9.8 1.09 1.5"/></svg>',
+    note: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/><path d="M9 9h1"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>',
+    logout: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
+    send: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
+    lock: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+    users: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    calc: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8" y2="11.01"/><line x1="12" y1="11" x2="12" y2="11.01"/><line x1="16" y1="11" x2="16" y2="11.01"/><line x1="8" y1="15" x2="8" y2="15.01"/><line x1="12" y1="15" x2="12" y2="15.01"/><line x1="16" y1="15" x2="16" y2="15.01"/><line x1="8" y1="19" x2="8" y2="19.01"/><line x1="12" y1="19" x2="12" y2="19.01"/><line x1="16" y1="19" x2="16" y2="19.01"/></svg>',
+    box: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg>'
+  };
+  function icon(name, size, weight) {
+    return ICONS[name].replace(/{s}/g, size || 20).replace(/{w}/g, weight || 2);
+  }
+
+  // ---------- render ----------
+  var root = document.getElementById("app");
+  var keypadWasOpen = false;
+  var lastScrolledTargetKey = null;
+
+  function scrollFieldAboveKeypad(el) {
+    if (!el) return;
+    requestAnimationFrame(function () {
+      try {
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      } catch (e) {}
+    });
+  }
+
+  function render() {
+    if (state.authState !== "in") {
+      renderAuth();
+      return;
+    }
+    if (state.notesOpen) {
+      renderNotes();
+      return;
+    }
+    if (state.historyPageOpen) {
+      renderHistoryPage();
+      return;
+    }
+
+    var html = "";
+
+    if (state.activeView === "calc" && !state.isReadOnly && !state.keypadTarget) {
+      state.keypadTarget = { type: "calc" };
+    }
+
+    if (state.helperOpen) {
+      html += renderHelperPage();
+      if (state.keypadTarget) html += renderKeypad(!keypadWasOpen);
+      keypadWasOpen = !!state.keypadTarget;
+      root.innerHTML = html;
+      attachEvents();
+      afterRenderKeypadFocus();
+      return;
+    }
+
+    html += '<div class="header" id="pageHeader">';
+    html += '  <div class="header-row">';
+    html += '    <div><h1>حساب الصالة</h1><p class="sub">صالة الحديد &middot; ' + esc(state.myName) + '</p></div>';
+    html += '    <div class="header-actions">';
+    html += '      <button id="notesBtn" class="icon-btn ghost" aria-label="الملاحظات">' + icon("note", 20, 2) + (state.hasUnreadNotes ? '<span class="notif-dot"></span>' : '') + '</button>';
+    if (!state.isReadOnly && state.activeView === "products") {
+      html += '      <button id="addToggleBtn" class="add-btn" aria-label="زيد منتج">' + icon(state.adding ? "x" : "plus", 22, 2.5) + '</button>';
+    }
+    html += '      <button id="workersToggleBtn" class="icon-btn ghost' + (state.workerTabsOpen ? " active-toggle" : "") + '" aria-label="الخدامين">' + icon("users", 18, 2) + '</button>';
+    html += '      <button id="logoutBtn" class="icon-btn ghost" aria-label="خروج">' + icon("logout", 18, 2) + '</button>';
+    html += '    </div>';
+    html += '  </div>';
+
+    // main view switcher: calculator / products
+    html += '  <div class="view-tabs">';
+    html += '    <button class="view-tab' + (state.activeView === "calc" ? " active" : "") + '" data-view="calc">' + icon("calc", 16, 2.5) + ' الحاسبة</button>';
+    html += '    <button class="view-tab' + (state.activeView === "products" ? " active" : "") + '" data-view="products">' + icon("box", 16, 2.5) + ' المنتجات</button>';
+    html += '  </div>';
+
+    // worker tabs (collapsible)
+    if (state.workerTabsOpen) {
+      html += '  <div class="worker-tabs slide-up">';
+      WORKERS.forEach(function (w) {
+        var available = w.name === state.myName || !!state.directory[w.name];
+        var active = w.name === state.viewingName;
+        html += '<button class="worker-tab' + (active ? " active" : "") + (available ? "" : " disabled") + '" data-worker-tab="' + esc(w.name) + '"' + (available ? "" : " disabled") + '>' + esc(w.name) + '</button>';
+      });
+      html += '  </div>';
+    }
+
+    if (!state.isReadOnly && state.activeView === "products") {
+      html += '  <div class="add-row slide-up' + (state.adding ? " open" : "") + '">';
+      html += '    <input id="newNameInput" type="text" placeholder="سمّي المنتج..." value="' + esc(state.newName) + '" />';
+      html += '    <button id="confirmAddBtn" class="confirm-btn">' + icon("check", 20, 2.5) + '</button>';
+      html += '  </div>';
+    }
+    html += '</div>';
+
+    if (state.isReadOnly) {
+      html += '<div class="ro-banner">' + icon("lock", 14) + ' وضع العرض فقط &mdash; بيانات ديال ' + esc(state.viewingName) + '</div>';
+    }
+
+    if (state.activeView === "products") {
+      // product list
+      html += '<div class="list">';
+      if (state.products.length === 0) {
+        html += '<div class="empty">';
+        html += '  <div class="empty-circle">' + icon("plus", 22) + '</div>';
+        html += '  <p class="title">مازال ما كاين حتى منتج</p>';
+        html += '  <p class="sub">' + (state.isReadOnly ? "هاد الخدام مازال ما زاد حتى منتج" : "اضغط على + باش تزيد أول سلعة") + '</p>';
+        html += '</div>';
+      } else {
+        state.products.forEach(function (p) { html += renderCard(p); });
+      }
+      html += '</div>';
+    } else {
+      if (!state.isReadOnly) {
+        // calculator - fixed in place, outside the scrollable area
+        html += '<div class="calc-wrap">';
+        html += '  <div class="calc-box">';
+        html += '    <div class="calc-top">';
+        html += '      <span>خانة تحسب</span>';
+        html += '      <div class="calc-top-actions">';
+        html += '        <button id="helperOpenBtn" class="hist-toggle lamp-toggle" aria-label="مساعد الفلوس">' + icon("lamp", 14) + ' مساعد</button>';
+        html += '        <button id="histToggleBtn" class="hist-toggle">' + icon("history", 13) + ' السجل</button>';
+        html += '      </div>';
+        html += '    </div>';
+        html += '    <div class="calc-display mono">' + esc(liveCalcDisplay()) + '</div>';
+        html += '    <div class="calc-row">';
+        html += '      <input id="calcInput" type="text" inputmode="none" autocomplete="off" class="mono" placeholder="5×5 + 3..." value="' + esc(state.calcExpr) + '" />';
+        html += '    </div>';
+        html += '  </div>';
+        html += '</div>';
+        html += '<div class="calc-page"></div>';
+      } else {
+        // read-only: whole page is the history
+        html += '<div class="calc-page">';
+        html += '<div class="history open">';
+        html += '  <div class="history-top">';
+        html += '    <span>سجل حسابات ' + esc(state.viewingName) + '</span>';
+        html += '  </div>';
+        if (state.history.length === 0) {
+          html += '  <p class="history-empty">لا يوجد حساب بعد</p>';
+        } else {
+          state.history.forEach(function (h) {
+            html += '<button class="history-item" data-hist-id="' + h.id + '">';
+            html += '  <span class="expr mono">' + esc(h.expr) + '</span>';
+            html += '  <span class="res mono">= ' + esc(formatNumber(h.result)) + '</span>';
+            html += '</button>';
+          });
+        }
+        html += '</div>';
+        html += '</div>';
+      }
+    }
+
+    if (state.keypadTarget) html += renderKeypad(!keypadWasOpen);
+    keypadWasOpen = !!state.keypadTarget;
+
+    root.innerHTML = html;
+    attachEvents();
+    afterRenderKeypadFocus();
+  }
+
+  function afterRenderKeypadFocus() {
+    if (!state.keypadTarget) {
+      lastScrolledTargetKey = null;
+      return;
+    }
+    var targetKey = state.keypadTarget.type + ":" + (state.keypadTarget.id || "") + ":" + (state.keypadTarget.field || "");
+    var shouldScroll = targetKey !== lastScrolledTargetKey;
+    lastScrolledTargetKey = targetKey;
+
+    if (state.keypadTarget.type === "calc") {
+      var ci = document.getElementById("calcInput");
+      if (ci) {
+        try {
+          ci.focus({ preventScroll: true });
+          var vlen = ci.value.length;
+          ci.setSelectionRange(vlen, vlen);
+        } catch (e) {}
+      }
+    } else if (state.keypadTarget.type === "product") {
+      var sel = document.querySelector('.value-field[data-id="' + state.keypadTarget.id + '"][data-field="' + state.keypadTarget.field + '"]');
+      if (sel) {
+        try {
+          sel.focus({ preventScroll: true });
+          var vlen2 = sel.value.length;
+          sel.setSelectionRange(vlen2, vlen2);
+        } catch (e) {}
+        if (shouldScroll) scrollFieldAboveKeypad(sel.closest(".card") || sel);
+      }
+    } else if (state.keypadTarget.type === "helper") {
+      var selH = document.querySelector('.helper-input[data-denom="' + state.keypadTarget.field + '"]');
+      if (selH) {
+        try {
+          selH.focus({ preventScroll: true });
+          var vlenH = selH.value.length;
+          selH.setSelectionRange(vlenH, vlenH);
+        } catch (e) {}
+        if (shouldScroll) scrollFieldAboveKeypad(selH.closest(".helper-row") || selH);
+      }
+    }
+  }
+
+  // ---------- auth screen ----------
+  function renderAuth() {
+    var html = "";
+    if (state.authState === "loading") {
+      html += '<div class="auth-loading">جاري التحميل...</div>';
+      root.innerHTML = html;
+      return;
+    }
+    html += '<div class="auth-wrap">';
+    html += '  <div class="auth-box">';
+    html += '    <h1>حساب الصالة</h1>';
+    html += '    <p class="sub">دخول صالة الحديد</p>';
+    html += '    <div class="auth-field">';
+    html += '      <label>شكون نتا؟</label>';
+    html += '      <select id="loginNameSelect">';
+    WORKERS.forEach(function (w) {
+      html += '<option value="' + esc(w.name) + '"' + (w.name === state.loginName ? " selected" : "") + '>' + esc(w.name) + '</option>';
+    });
+    html += '      </select>';
+    html += '    </div>';
+    html += '    <div class="auth-field">';
+    html += '      <label>كلمة السر</label>';
+    html += '      <input id="loginPasswordInput" type="password" placeholder="••••••" value="' + esc(state.loginPassword) + '" autocomplete="current-password" />';
+    html += '    </div>';
+    html += '    <button id="loginBtn" class="auth-submit"' + (state.authBusy ? " disabled" : "") + '>' + (state.authBusy ? "جاري الدخول..." : "دخول") + '</button>';
+    if (state.authError) html += '    <p class="auth-error">' + esc(state.authError) + '</p>';
+    html += '  </div>';
+    html += '</div>';
+    root.innerHTML = html;
+
+    var sel = document.getElementById("loginNameSelect");
+    if (sel) sel.onchange = function (e) { state.loginName = e.target.value; };
+    var pw = document.getElementById("loginPasswordInput");
+    if (pw) {
+      pw.oninput = function (e) { state.loginPassword = e.target.value; };
+      pw.onkeydown = function (e) { if (e.key === "Enter") doLogin(); };
+    }
+    var btn = document.getElementById("loginBtn");
+    if (btn) btn.onclick = doLogin;
+  }
+
+  function doLogin() {
+    if (state.authBusy) return;
+    var worker = workerByName(state.loginName);
+    if (!worker) return;
+    if (!state.loginPassword) {
+      state.authError = "دخل كلمة السر";
+      render();
+      return;
+    }
+    state.authBusy = true;
+    state.authError = "";
+    render();
+    auth.signInWithEmailAndPassword(worker.email, state.loginPassword)
+      .catch(function (err) {
+        state.authBusy = false;
+        if (err && (err.code === "auth/wrong-password" || err.code === "auth/user-not-found" || err.code === "auth/invalid-credential")) {
+          state.authError = "الاسم أو كلمة السر غالطين";
+        } else {
+          state.authError = "وقع مشكل، جرب مرة أخرى (تأكد من الأنترنت)";
+        }
+        render();
+      });
+  }
+
+  function doLogout() {
+    auth.signOut();
+  }
+
+  // ---------- notes page ----------
+  function renderNotes() {
+    var html = "";
+    html += '<div class="header">';
+    html += '  <div class="header-row">';
+    html += '    <div><h1>الملاحظات</h1><p class="sub">مشتركة بين الجميع</p></div>';
+    html += '    <button id="notesBackBtn" class="helper-back-btn" aria-label="رجوع">' + icon("x", 20, 2.5) + '</button>';
+    html += '  </div>';
+    html += '</div>';
+
+    html += '<div class="list notes-list">';
+    if (state.notes.length === 0) {
+      html += '<div class="empty">';
+      html += '  <div class="empty-circle">' + icon("note", 22) + '</div>';
+      html += '  <p class="title">مازال ما كاينة حتى ملاحظة</p>';
+      html += '  <p class="sub">اكتب أول ملاحظة تحت</p>';
+      html += '</div>';
+    } else {
+      state.notes.forEach(function (n) {
+        html += '<div class="note-card">';
+        html += '  <div class="note-meta"><span class="note-author">' + esc(n.author) + '</span><span class="note-time">' + esc(timeAgo(n.createdAt)) + '</span></div>';
+        html += '  <div class="note-text">' + esc(n.text) + '</div>';
+        html += '</div>';
+      });
+    }
+    html += '</div>';
+
+    html += '<div class="note-compose">';
+    html += '  <div class="note-compose-row">';
+    html += '    <textarea id="noteDraftInput" placeholder="اكتب ملاحظة... (مثلا: فلان خدا قرعة وما خلصش)" rows="1">' + esc(state.noteDraft) + '</textarea>';
+    html += '    <button id="noteSendBtn" class="note-send-btn"' + (state.noteDraft.trim() ? "" : " disabled") + '>' + icon("send", 18) + '</button>';
+    html += '  </div>';
+    html += '</div>';
+
+    root.innerHTML = html;
+
+    var backBtn = document.getElementById("notesBackBtn");
+    if (backBtn) backBtn.onclick = function () { state.notesOpen = false; markNotesSeen(); render(); };
+
+    var draft = document.getElementById("noteDraftInput");
+    if (draft) {
+      draft.oninput = function (e) {
+        state.noteDraft = e.target.value;
+        e.target.style.height = "auto";
+        e.target.style.height = Math.min(e.target.scrollHeight, 100) + "px";
+        var sendBtn = document.getElementById("noteSendBtn");
+        if (sendBtn) sendBtn.disabled = !state.noteDraft.trim();
+      };
+      draft.focus();
+    }
+    var sendBtn = document.getElementById("noteSendBtn");
+    if (sendBtn) sendBtn.onclick = sendNote;
+  }
+
+  function sendNote() {
+    var text = state.noteDraft.trim();
+    if (!text) return;
+    state.noteDraft = "";
+    notesCol().add({
+      text: text,
+      author: state.myName,
+      createdAt: serverTimestamp()
+    }).catch(function (e) { console.error(e); });
+    render();
+  }
+
+  function subscribeNotes() {
+    if (unsubNotes) unsubNotes();
+    unsubNotes = notesCol().orderBy("createdAt", "desc").limit(200).onSnapshot(function (snap) {
+      state.notes = snap.docs.map(function (d) { var data = d.data(); data.id = d.id; return data; });
+      if (!state.notesOpen) {
+        var lastSeen = getNotesLastSeen();
+        var unread = state.notes.some(function (n) {
+          return n.author !== state.myName && n.createdAt && n.createdAt.toMillis && n.createdAt.toMillis() > lastSeen;
+        });
+        state.hasUnreadNotes = unread;
+      }
+      render();
+    }, function (err) { console.error(err); });
+  }
+
+  function renderHistoryPage() {
+    var html = "";
+    html += '<div class="header">';
+    html += '  <div class="header-row">';
+    html += '    <div><h1>السجل</h1><p class="sub">جميع الحسابات ديالك</p></div>';
+    html += '    <button id="historyBackBtn" class="helper-back-btn" aria-label="رجوع">' + icon("x", 20, 2.5) + '</button>';
+    html += '  </div>';
+    html += '</div>';
+
+    html += '<div class="list">';
+    if (state.history.length === 0) {
+      html += '<div class="empty">';
+      html += '  <div class="empty-circle">' + icon("history", 22) + '</div>';
+      html += '  <p class="title">لا يوجد حساب بعد</p>';
+      html += '  <p class="sub">الحسابات اللي غادي ديري غادي تبانو هنا</p>';
+      html += '</div>';
+    } else {
+      html += '  <button id="clearHistBtn" class="clear-btn" style="margin-bottom:12px;">' + icon("eraser", 13) + ' مسح السجل</button>';
+      state.history.forEach(function (h) {
+        html += '<button class="history-item" data-hist-id="' + h.id + '">';
+        html += '  <span class="expr mono">' + esc(h.expr) + '</span>';
+        html += '  <span class="res mono">= ' + esc(formatNumber(h.result)) + '</span>';
+        html += '</button>';
+      });
+    }
+    html += '</div>';
+
+    root.innerHTML = html;
+
+    var backBtn = document.getElementById("historyBackBtn");
+    if (backBtn) backBtn.onclick = function () { state.historyPageOpen = false; render(); };
+
+    var clearBtn = document.getElementById("clearHistBtn");
+    if (clearBtn) clearBtn.onclick = clearHistory;
+
+    document.querySelectorAll("[data-hist-id]").forEach(function (btn) {
+      btn.onclick = function () {
+        var hid = btn.getAttribute("data-hist-id");
+        var item = state.history.find(function (h) { return h.id === hid; });
+        if (item) state.calcExpr = String(item.result);
+        state.historyPageOpen = false;
+        render();
+      };
+    });
+  }
+
+  function renderKeypad(animateIn) {
+    var keys = [
+      { label: "⌫", cls: "kp-back", action: "back" },
+      { label: "(", cls: "", action: "char", value: "(" },
+      { label: ")", cls: "", action: "char", value: ")" },
+      { label: "C", cls: "kp-clear", action: "clear" },
+      { label: "÷", cls: "kp-op", action: "char", value: "÷" },
+      { label: "3", cls: "", action: "char", value: "3" },
+      { label: "2", cls: "", action: "char", value: "2" },
+      { label: "1", cls: "", action: "char", value: "1" },
+      { label: "×", cls: "kp-op", action: "char", value: "×" },
+      { label: "6", cls: "", action: "char", value: "6" },
+      { label: "5", cls: "", action: "char", value: "5" },
+      { label: "4", cls: "", action: "char", value: "4" },
+      { label: "−", cls: "kp-op", action: "char", value: "-" },
+      { label: "9", cls: "", action: "char", value: "9" },
+      { label: "8", cls: "", action: "char", value: "8" },
+      { label: "7", cls: "", action: "char", value: "7" },
+      { label: "+", cls: "kp-op", action: "char", value: "+" },
+      { label: "=", cls: "kp-equals", action: "equals" },
+      { label: "0", cls: "", action: "char", value: "0" },
+      { label: ".", cls: "", action: "char", value: "." },
+    ];
+    var pinned = state.activeView === "calc" && state.keypadTarget && state.keypadTarget.type === "calc";
+    var h = '<div class="keypad-wrap' + (animateIn ? " slide-up" : "") + '">';
+    h += '  <div class="keypad-box">';
+    h += '    <div class="keypad-top">';
+    h += '      <span>لوحة الأرقام</span>';
+    if (!pinned) {
+      h += '      <button id="keypadDoneBtn" class="keypad-done">' + icon("check", 13) + ' تم</button>';
+    }
+    h += '    </div>';
+    h += '    <div class="keypad-grid">';
+    keys.forEach(function (k) {
+      h += '<button type="button" class="kp-btn ' + k.cls + '" data-kp-action="' + k.action + '" data-kp-value="' + (k.value ? esc(k.value) : "") + '">' + k.label + '</button>';
+    });
+    h += '    </div>';
+    h += '  </div>';
+    h += '</div>';
+    return h;
+  }
+
+  function renderCard(p) {
+    var biroVal = evaluateExpr(fieldValue(p, "biro"));
+    var makhzanVal = evaluateExpr(fieldValue(p, "makhzan"));
+    var sum = (biroVal !== null ? biroVal : 0) + (makhzanVal !== null ? makhzanVal : 0);
+    var hasAny = biroVal !== null || makhzanVal !== null;
+    var h = '<div class="card">';
+    h += '  <span class="rivet r"></span><span class="rivet l"></span>';
+    h += '  <div class="card-top">';
+    h += '    <h3>' + esc(p.name) + '</h3>';
+    if (hasAny) {
+      h += '    <span class="card-sum">مجموع <b class="mono">' + esc(formatNumber(sum)) + '</b></span>';
+    }
+    if (!state.isReadOnly) {
+      if (state.confirmDeleteId === p.id) {
+        h += '    <div class="confirm-del">';
+        h += '      <button class="yes" data-del-confirm="' + p.id + '">' + icon("check", 13) + ' حذف</button>';
+        h += '      <button class="no" data-del-cancel="' + p.id + '">' + icon("x", 13) + '</button>';
+        h += '    </div>';
+      } else {
+        h += '    <button class="del-btn" data-del-ask="' + p.id + '" aria-label="حذف المنتج">' + icon("trash", 16) + '</button>';
+      }
+    }
+    h += '  </div>';
+    h += '  <div class="card-grid">';
+    h += '    <div><div class="field-label">بيرو</div><input class="value-field' + (fieldValue(p, "biro") ? " filled" : "") + (state.isReadOnly ? " ro" : "") + ' mono" inputmode="none" autocomplete="off" data-field="biro" data-id="' + p.id + '" value="' + esc(fieldValue(p, "biro")) + '" placeholder="0"' + (state.isReadOnly ? " readonly" : "") + ' /></div>';
+    h += '    <div><div class="field-label">مخزن</div><input class="value-field' + (fieldValue(p, "makhzan") ? " filled" : "") + (state.isReadOnly ? " ro" : "") + ' mono" inputmode="none" autocomplete="off" data-field="makhzan" data-id="' + p.id + '" value="' + esc(fieldValue(p, "makhzan")) + '" placeholder="0"' + (state.isReadOnly ? " readonly" : "") + ' /></div>';
+    h += '  </div>';
+    h += '</div>';
+    return h;
+  }
+
+  function renderHelperPage() {
+    var h = "";
+    h += '<div class="header">';
+    h += '  <div class="header-row">';
+    h += '    <div><h1>مساعد الفلوس</h1><p class="sub">حساب حسب الفئات</p></div>';
+    h += '    <button id="helperCancelBtnTop" class="helper-back-btn" aria-label="رجوع">' + icon("x", 20, 2.5) + '</button>';
+    h += '  </div>';
+    h += '</div>';
+
+    h += '<div class="list">';
+    HELPER_DENOMS.forEach(function (d) {
+      var val = helperFieldValue(d);
+      var count = evaluateExpr(val);
+      if (count === null) count = 0;
+      var result = count * d;
+      h += '<div class="helper-row">';
+      h += '  <div class="helper-denom mono">' + d + '</div>';
+      h += '  <span class="helper-mul">×</span>';
+      h += '  <input class="helper-input mono" inputmode="none" autocomplete="off" data-denom="' + d + '" value="' + esc(val) + '" placeholder="0" />';
+      h += '  <span class="helper-eq">=</span>';
+      h += '  <div class="helper-result mono">' + esc(formatNumber(result)) + '</div>';
+      h += '</div>';
+    });
+    h += '</div>';
+
+    var total = computeHelperTotal();
+    h += '<div class="calc-wrap">';
+    h += '  <div class="calc-box">';
+    h += '    <div class="helper-total-row">';
+    h += '      <span>المجموع</span>';
+    h += '      <span class="helper-total-value mono">' + esc(formatNumber(total)) + '</span>';
+    h += '    </div>';
+    h += '    <div class="helper-actions">';
+    h += '      <button id="helperCancelBtn" class="helper-cancel">' + icon("x", 15) + ' إلغاء</button>';
+    h += '      <button id="helperAddBtn" class="helper-add">' + icon("check", 15) + ' إضافة</button>';
+    h += '    </div>';
+    h += '  </div>';
+    h += '</div>';
+
+    return h;
+  }
+
+  // ---------- events ----------
+  function attachEvents() {
+    var notesBtn = document.getElementById("notesBtn");
+    if (notesBtn) notesBtn.onclick = function () { state.notesOpen = true; markNotesSeen(); render(); };
+
+    var logoutBtn = document.getElementById("logoutBtn");
+    if (logoutBtn) logoutBtn.onclick = doLogout;
+
+    var workersToggleBtn = document.getElementById("workersToggleBtn");
+    if (workersToggleBtn) workersToggleBtn.onclick = function () { state.workerTabsOpen = !state.workerTabsOpen; render(); };
+
+    document.querySelectorAll("[data-view]").forEach(function (btn) {
+      btn.onclick = function () {
+        var v = btn.getAttribute("data-view");
+        if (v === state.activeView) return;
+        state.activeView = v;
+        state.keypadTarget = null;
+        state.kpBuffer = "";
+        state.adding = false;
+        render();
+      };
+    });
+
+    document.querySelectorAll("[data-worker-tab]").forEach(function (btn) {
+      btn.onclick = function () {
+        var name = btn.getAttribute("data-worker-tab");
+        switchViewing(name);
+      };
+    });
+
+    var addToggleBtn = document.getElementById("addToggleBtn");
+    if (addToggleBtn) addToggleBtn.onclick = function () {
+      state.adding = !state.adding;
+      if (!state.adding) state.newName = "";
+      render();
+      if (state.adding) {
+        var inp = document.getElementById("newNameInput");
+        if (inp) inp.focus();
+      }
+    };
+
+    var newNameInput = document.getElementById("newNameInput");
+    if (newNameInput) {
+      newNameInput.oninput = function (e) { state.newName = e.target.value; };
+      newNameInput.onkeydown = function (e) { if (e.key === "Enter") addProduct(); };
+    }
+    var confirmAddBtn = document.getElementById("confirmAddBtn");
+    if (confirmAddBtn) confirmAddBtn.onclick = addProduct;
+
+    var helperOpenBtn = document.getElementById("helperOpenBtn");
+    if (helperOpenBtn) helperOpenBtn.onclick = openHelper;
+
+    var helperCancelBtnTop = document.getElementById("helperCancelBtnTop");
+    if (helperCancelBtnTop) helperCancelBtnTop.onclick = cancelHelper;
+    var helperCancelBtn = document.getElementById("helperCancelBtn");
+    if (helperCancelBtn) helperCancelBtn.onclick = cancelHelper;
+    var helperAddBtn = document.getElementById("helperAddBtn");
+    if (helperAddBtn) helperAddBtn.onclick = confirmHelperAdd;
+
+    document.querySelectorAll(".helper-input").forEach(function (input) {
+      input.addEventListener("focus", function (e) {
+        var d = e.target.getAttribute("data-denom");
+        if (state.keypadTarget && state.keypadTarget.type === "helper" && state.keypadTarget.field === d) return;
+        if (state.keypadTarget && state.keypadTarget.type === "helper") {
+          commitHelperField(state.keypadTarget, state.kpBuffer);
+        }
+        state.keypadTarget = { type: "helper", field: d };
+        state.kpBuffer = state.helperValues[d] || "";
+        render();
+      });
+      input.addEventListener("input", function (e) {
+        var d = e.target.getAttribute("data-denom");
+        if (state.keypadTarget && state.keypadTarget.type === "helper" && state.keypadTarget.field === d) {
+          state.kpBuffer = e.target.value;
+        }
+      });
+      input.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          if (state.keypadTarget && state.keypadTarget.type === "helper") {
+            commitHelperField(state.keypadTarget, state.kpBuffer);
+          }
+          state.keypadTarget = null;
+          state.kpBuffer = "";
+          e.target.blur();
+          render();
+        }
+      });
+    });
+
+    document.querySelectorAll(".value-field").forEach(function (input) {
+      if (state.isReadOnly) return;
+      input.addEventListener("focus", function (e) {
+        var id = e.target.getAttribute("data-id");
+        var field = e.target.getAttribute("data-field");
+        if (state.keypadTarget && state.keypadTarget.type === "product" &&
+            state.keypadTarget.id === id && state.keypadTarget.field === field) {
+          return;
+        }
+        if (state.keypadTarget && state.keypadTarget.type === "product") {
+          commitProductField(state.keypadTarget, state.kpBuffer);
+        }
+        var p = state.products.find(function (pp) { return pp.id === id; });
+        state.keypadTarget = { type: "product", id: id, field: field };
+        state.kpBuffer = p ? (p[field] || "") : "";
+        render();
+      });
+      input.addEventListener("input", function (e) {
+        var id = e.target.getAttribute("data-id");
+        var field = e.target.getAttribute("data-field");
+        if (state.keypadTarget && state.keypadTarget.type === "product" &&
+            state.keypadTarget.id === id && state.keypadTarget.field === field) {
+          state.kpBuffer = e.target.value;
+        }
+      });
+      input.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          if (state.keypadTarget && state.keypadTarget.type === "product") {
+            commitProductField(state.keypadTarget, state.kpBuffer);
+          }
+          state.keypadTarget = null;
+          state.kpBuffer = "";
+          e.target.blur();
+          render();
+        }
+      });
+    });
+
+    document.querySelectorAll("[data-del-ask]").forEach(function (btn) {
+      btn.onclick = function () { state.confirmDeleteId = btn.getAttribute("data-del-ask"); render(); };
+    });
+    document.querySelectorAll("[data-del-cancel]").forEach(function (btn) {
+      btn.onclick = function () { state.confirmDeleteId = null; render(); };
+    });
+    document.querySelectorAll("[data-del-confirm]").forEach(function (btn) {
+      btn.onclick = function () {
+        var id = btn.getAttribute("data-del-confirm");
+        state.confirmDeleteId = null;
+        productsCol(state.myUid).doc(id).delete().catch(function (e) { console.error(e); });
+        render();
+      };
+    });
+
+    var histToggleBtn = document.getElementById("histToggleBtn");
+    if (histToggleBtn) histToggleBtn.onclick = function () { state.historyPageOpen = true; render(); };
+    var clearHistBtn = document.getElementById("clearHistBtn");
+    if (clearHistBtn) clearHistBtn.onclick = clearHistory;
+    document.querySelectorAll("[data-hist-id]").forEach(function (btn) {
+      btn.onclick = function () {
+        var hid = btn.getAttribute("data-hist-id");
+        var item = state.history.find(function (h) { return h.id === hid; });
+        if (item) state.calcExpr = String(item.result);
+        state.historyOpen = false;
+        render();
+      };
+    });
+
+    var calcInput = document.getElementById("calcInput");
+    if (calcInput) {
+      calcInput.oninput = function (e) {
+        state.calcExpr = e.target.value;
+        var disp = document.querySelector(".calc-display");
+        if (disp) disp.textContent = liveCalcDisplay();
+      };
+      calcInput.onkeydown = function (e) { if (e.key === "Enter") runCalc(); };
+      calcInput.onfocus = function () {
+        if (state.keypadTarget && state.keypadTarget.type === "calc") return;
+        if (state.keypadTarget && state.keypadTarget.type === "product") {
+          commitProductField(state.keypadTarget, state.kpBuffer);
+        }
+        state.keypadTarget = { type: "calc" };
+        render();
+      };
+    }
+    var keypadDoneBtn = document.getElementById("keypadDoneBtn");
+    if (keypadDoneBtn) keypadDoneBtn.onclick = function () { closeKeypad(); vibrateKey(); };
+    document.querySelectorAll("[data-kp-action]").forEach(function (btn) {
+      btn.onclick = function () {
+        var actionForVibe = btn.getAttribute("data-kp-action");
+        if (actionForVibe === "equals") vibrateKey(45);
+        else if (actionForVibe === "clear") vibrateKey([15, 60, 15]);
+        else vibrateKey(35);
+        var action = btn.getAttribute("data-kp-action");
+        var t = state.keypadTarget;
+        if (!t) return;
+        if (t.type === "calc") {
+          if (action === "char") state.calcExpr += btn.getAttribute("data-kp-value");
+          else if (action === "back") state.calcExpr = state.calcExpr.slice(0, -1);
+          else if (action === "clear") state.calcExpr = "";
+          else if (action === "equals") { runCalc(); return; }
+          render();
+        } else if (t.type === "product") {
+          if (action === "char") state.kpBuffer += btn.getAttribute("data-kp-value");
+          else if (action === "back") state.kpBuffer = state.kpBuffer.slice(0, -1);
+          else if (action === "clear") state.kpBuffer = "";
+          else if (action === "equals") {
+            var result = evaluateExpr(state.kpBuffer);
+            if (result !== null) state.kpBuffer = String(result);
+          }
+          render();
+        } else if (t.type === "helper") {
+          if (action === "char") state.kpBuffer += btn.getAttribute("data-kp-value");
+          else if (action === "back") state.kpBuffer = state.kpBuffer.slice(0, -1);
+          else if (action === "clear") state.kpBuffer = "";
+          else if (action === "equals") {
+            var resultH = evaluateExpr(state.kpBuffer);
+            if (resultH !== null) state.kpBuffer = String(resultH);
+          }
+          render();
+        }
+      };
+    });
+  }
+
+  function vibrateKey(ms) {
+    if (!navigator.vibrate) return;
+    try {
+      navigator.vibrate(ms || 35);
+    } catch (e) {}
+  }
+
+  function closeKeypad() {
+    if (state.keypadTarget && state.keypadTarget.type === "product") {
+      commitProductField(state.keypadTarget, state.kpBuffer);
+    } else if (state.keypadTarget && state.keypadTarget.type === "helper") {
+      commitHelperField(state.keypadTarget, state.kpBuffer);
+    }
+    state.keypadTarget = null;
+    state.kpBuffer = "";
+    render();
+    if (document.activeElement && typeof document.activeElement.blur === "function") {
+      document.activeElement.blur();
+    }
+  }
+
+  function addProduct() {
+    var name = state.newName.trim();
+    if (!name) { state.adding = false; render(); return; }
+    state.newName = "";
+    state.adding = false;
+    productsCol(state.myUid).add({ name: name, biro: "", makhzan: "", createdAt: serverTimestamp() })
+      .catch(function (e) { console.error(e); });
+    render();
+  }
+
+  function liveCalcDisplay() {
+    var expr = state.calcExpr;
+    if (!expr || !expr.trim()) return "0";
+    var result = evaluateExpr(expr);
+    if (result !== null) return formatNumber(result);
+    return "...";
+  }
+
+  function runCalc() {
+    var result = evaluateExpr(state.calcExpr);
+    if (result === null) return;
+    var expr = state.calcExpr;
+    state.calcExpr = String(result);
+    render();
+    historyCol(state.myUid).add({ expr: expr, result: result, createdAt: serverTimestamp() })
+      .catch(function (e) { console.error(e); });
+  }
+
+  function clearHistory() {
+    historyCol(state.myUid).get().then(function (snap) {
+      var batch = db.batch();
+      snap.docs.forEach(function (d) { batch.delete(d.ref); });
+      return batch.commit();
+    }).catch(function (e) { console.error(e); });
+  }
+
+  // ---------- switching whose data is viewed ----------
+  function switchViewing(name) {
+    var uid;
+    if (name === state.myName) uid = state.myUid;
+    else uid = state.directory[name];
+    if (!uid) return; // that worker hasn't logged in yet, no data to show
+    state.viewingName = name;
+    state.viewingUid = uid;
+    state.isReadOnly = name !== state.myName;
+    state.confirmDeleteId = null;
+    state.keypadTarget = null;
+    state.kpBuffer = "";
+    state.adding = false;
+    state.historyOpen = false;
+    state.workerTabsOpen = false;
+    subscribeViewedData(uid);
+    render();
+  }
+
+  function subscribeViewedData(uid) {
+    if (unsubProducts) unsubProducts();
+    if (unsubHistory) unsubHistory();
+    unsubProducts = productsCol(uid).orderBy("createdAt", "desc").onSnapshot(function (snap) {
+      state.products = snap.docs.map(function (d) { var data = d.data(); data.id = d.id; return data; });
+      render();
+    }, function (err) { console.error(err); });
+    unsubHistory = historyCol(uid).orderBy("createdAt", "desc").limit(60).onSnapshot(function (snap) {
+      state.history = snap.docs.map(function (d) { var data = d.data(); data.id = d.id; return data; });
+      render();
+    }, function (err) { console.error(err); });
+  }
+
+  // ---------- auth lifecycle ----------
+  auth.onAuthStateChanged(function (user) {
+    if (unsubProducts) { unsubProducts(); unsubProducts = null; }
+    if (unsubHistory) { unsubHistory(); unsubHistory = null; }
+    if (unsubDirectory) { unsubDirectory(); unsubDirectory = null; }
+    if (unsubNotes) { unsubNotes(); unsubNotes = null; }
+
+    if (!user) {
+      state.authState = "out";
+      state.authBusy = false;
+      state.myName = null;
+      state.myUid = null;
+      render();
+      return;
+    }
+
+    var worker = null;
+    for (var i = 0; i < WORKERS.length; i++) {
+      if (WORKERS[i].email.toLowerCase() === (user.email || "").toLowerCase()) { worker = WORKERS[i]; break; }
+    }
+
+    state.myName = worker ? worker.name : (user.email || "مستخدم");
+    state.myUid = user.uid;
+    state.authState = "in";
+    state.authBusy = false;
+    state.viewingName = state.myName;
+    state.viewingUid = user.uid;
+    state.isReadOnly = false;
+
+    // register this worker's uid in the shared directory so others can view their data
+    directoryDoc().set(makeDirectoryPatch(state.myName, user.uid), { merge: true }).catch(function (e) { console.error(e); });
+
+    unsubDirectory = directoryDoc().onSnapshot(function (doc) {
+      state.directory = doc.exists ? doc.data() : {};
+      render();
+    }, function (err) { console.error(err); });
+
+    subscribeViewedData(user.uid);
+    subscribeNotes();
+    render();
+  });
+
+  function makeDirectoryPatch(name, uid) {
+    var patch = {};
+    patch[name] = uid;
+    return patch;
+  }
+
+  // ---------- init ----------
+  document.addEventListener("pointerdown", function (e) {
+    if (!state.keypadTarget) return;
+    if (state.activeView === "calc" && state.keypadTarget.type === "calc") return; // pinned, stays open
+    var withinKeypad = e.target.closest && e.target.closest(".keypad-wrap");
+    var withinField = e.target.closest && e.target.closest("#calcInput, .value-field, .helper-input");
+    if (withinKeypad || withinField) return;
+    closeKeypad();
+  });
+
+  render();
+})();
+</script>
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("/sw.js").then(function (reg) {
+        console.log("SW registered:", reg.scope);
+      }).catch(function (err) {
+        console.error("SW registration failed:", err);
+      });
+    });
+  }
+</script>
+</body>
+</html>

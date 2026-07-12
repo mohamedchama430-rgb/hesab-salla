@@ -1,4 +1,4 @@
-const CACHE_NAME = "hesab-salla-v2";
+const CACHE_NAME = "hesab-salla-v3";
 const CORE_ASSETS = [
   "index.html",
   "manifest.json",

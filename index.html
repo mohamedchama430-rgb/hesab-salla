@@ -1298,15 +1298,30 @@
     render();
   }
 
+  var calcDisplayFitSize = 46;
+
   function fitCalcDisplay(el) {
     if (!el) return;
-    var maxSize = 46, minSize = 13;
-    el.style.fontSize = maxSize + "px";
-    var size = maxSize;
-    while (el.scrollHeight > el.clientHeight && size > minSize) {
-      size -= 1;
-      el.style.fontSize = size + "px";
+    var minSize = 13, maxSize = 46;
+    var size = calcDisplayFitSize || maxSize;
+    el.style.fontSize = size + "px";
+    if (el.scrollHeight > el.clientHeight) {
+      while (el.scrollHeight > el.clientHeight && size > minSize) {
+        size -= 1;
+        el.style.fontSize = size + "px";
+      }
+    } else {
+      while (size < maxSize) {
+        var testSize = size + 1;
+        el.style.fontSize = testSize + "px";
+        if (el.scrollHeight > el.clientHeight) {
+          el.style.fontSize = size + "px";
+          break;
+        }
+        size = testSize;
+      }
     }
+    calcDisplayFitSize = size;
   }
 
   function liveCalcDisplay() {

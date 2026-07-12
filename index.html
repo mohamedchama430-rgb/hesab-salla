@@ -1300,10 +1300,13 @@
 
   function fitCalcDisplay(el) {
     if (!el) return;
-    var len = (el.textContent || "").length;
-    var size = 46;
-    if (len > 7) size = Math.max(20, 46 - (len - 7) * 3);
-    el.style.fontSize = size + "px";
+    var maxSize = 46, minSize = 13;
+    el.style.fontSize = maxSize + "px";
+    var size = maxSize;
+    while (el.scrollWidth > el.clientWidth && size > minSize) {
+      size -= 1;
+      el.style.fontSize = size + "px";
+    }
   }
 
   function liveCalcDisplay() {

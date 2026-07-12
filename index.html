@@ -282,7 +282,15 @@
 
   /* notes page */
   .notes-list { padding: 0 16px; }
-  .note-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+  .note-card { display: flex; align-items: flex-start; gap: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+  .note-body { flex: 1; min-width: 0; }
+  .note-check {
+    flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; margin-top: 2px;
+    border: 2px solid var(--border); background: none; color: var(--bg);
+    display: flex; align-items: center; justify-content: center; padding: 0;
+  }
+  .note-done .note-check { background: var(--amber); border-color: var(--amber); }
+  .note-done .note-text { color: var(--textDim); text-decoration: line-through; }
   .note-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
   .note-author { font-size: 12px; font-weight: 800; color: var(--amber); }
   .note-time { font-size: 11px; color: var(--textDim); }
@@ -830,9 +838,12 @@
       html += '</div>';
     } else {
       state.notes.forEach(function (n) {
-        html += '<div class="note-card">';
-        html += '  <div class="note-meta"><span class="note-author">' + esc(n.author) + '</span><span class="note-time">' + esc(timeAgo(n.createdAt)) + '</span></div>';
-        html += '  <div class="note-text">' + esc(n.text) + '</div>';
+        html += '<div class="note-card' + (n.done ? ' note-done' : '') + '">';
+        html += '  <button class="note-check" data-id="' + esc(n.id) + '" aria-label="تم الإنجاز">' + (n.done ? icon("check", 16, 3) : '') + '</button>';
+        html += '  <div class="note-body">';
+        html += '    <div class="note-meta"><span class="note-author">' + esc(n.author) + '</span><span class="note-time">' + esc(timeAgo(n.createdAt)) + '</span></div>';
+        html += '    <div class="note-text">' + esc(n.text) + '</div>';
+        html += '  </div>';
         html += '</div>';
       });
     }
@@ -863,6 +874,16 @@
     }
     var sendBtn = document.getElementById("noteSendBtn");
     if (sendBtn) sendBtn.onclick = sendNote;
+
+    var checkBtns = document.querySelectorAll(".note-check");
+    checkBtns.forEach(function (btn) {
+      btn.onclick = function () {
+        var id = btn.getAttribute("data-id");
+        var note = state.notes.find(function (n) { return n.id === id; });
+        var newDone = !(note && note.done);
+        notesCol().doc(id).update({ done: newDone }).catch(function (e) { console.error(e); });
+      };
+    });
   }
 
   function sendNote() {

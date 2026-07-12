@@ -1,4 +1,4 @@
-const CACHE_NAME = "hesab-salla-v1";
+const CACHE_NAME = "hesab-salla-v2";
 const CORE_ASSETS = [
   "index.html",
   "manifest.json",
@@ -32,21 +32,18 @@ self.addEventListener("fetch", function (event) {
   if (event.request.method !== "GET") return;
 
   event.respondWith(
-    caches.match(event.request).then(function (cached) {
-      const networkFetch = fetch(event.request)
-        .then(function (response) {
-          if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then(function (cache) {
-              cache.put(event.request, clone);
-            });
-          }
-          return response;
-        })
-        .catch(function () {
-          return cached;
-        });
-      return cached || networkFetch;
-    })
+    fetch(event.request)
+      .then(function (response) {
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(function (cache) {
+            cache.put(event.request, clone);
+          });
+        }
+        return response;
+      })
+      .catch(function () {
+        return caches.match(event.request);
+      })
   );
 });

@@ -191,7 +191,7 @@
   .hist-toggle { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; padding: 7px 12px; border-radius: 10px; background: none; border: none; color: var(--textDim); }
   .hist-toggle.active { color: var(--amber); background: rgba(215,255,75,0.12); }
   .lamp-toggle { color: var(--amber); }
-  .calc-display { text-align: right; font-size: 46px; font-weight: 800; margin-bottom: 18px; color: var(--amber); direction: ltr; min-height: 56px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: font-size 0.1s; }
+  .calc-display { text-align: right; font-size: 46px; font-weight: 800; margin-bottom: 18px; color: var(--amber); direction: ltr; min-height: 56px; max-height: 112px; overflow: hidden; white-space: normal; word-break: break-all; overflow-wrap: anywhere; line-height: 1.15; transition: font-size 0.1s; }
   .calc-row { display: flex; align-items: center; gap: 10px; }
   .calc-row input {
     flex: 1; border-radius: 12px; padding: 16px 16px; font-size: 21px; direction: ltr;
@@ -1303,7 +1303,7 @@
     var maxSize = 46, minSize = 13;
     el.style.fontSize = maxSize + "px";
     var size = maxSize;
-    while (el.scrollWidth > el.clientWidth && size > minSize) {
+    while (el.scrollHeight > el.clientHeight && size > minSize) {
       size -= 1;
       el.style.fontSize = size + "px";
     }

@@ -308,11 +308,24 @@
     border: none; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
   .note-send-btn:disabled { opacity: 0.4; }
+  .note-photo-btn {
+    width: 44px; height: 44px; border-radius: 999px; background: var(--panel); color: var(--textDim);
+    border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .note-photo-preview { position: relative; display: inline-block; margin-bottom: 8px; }
+  .note-photo-preview img { max-height: 90px; border-radius: 10px; display: block; }
+  .note-photo-loading { font-size: 13px; color: var(--textDim); padding: 8px 0; }
+  .note-photo-remove {
+    position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--red); color: #fff; border: none; display: flex; align-items: center; justify-content: center; padding: 0;
+  }
+  .note-photo { max-width: 100%; border-radius: 10px; margin: 6px 0; display: block; }
 </style>
 </head>
 <body>
 <div id="app"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -353,6 +366,17 @@
 
   var serverTimestamp = firebase.firestore.FieldValue.serverTimestamp;
 
+  // ---------- supabase (تخزين صور الملاحظات فقط) ----------
+  var SUPABASE_URL = "https://nsmxrtvzjgwiyscfildu.supabase.co";
+  var SUPABASE_ANON_KEY = "sb_publishable_ZhwzJGgN0tqLfI0wf91XBw_uo3OKKWD";
+  var SUPABASE_BUCKET = "note-photos";
+  var supabaseClient = null;
+  try {
+    if (window.supabase) {
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+  } catch (e) { console.error("Supabase init failed:", e); }
+
   // ---------- state ----------
   var state = {
     authState: "loading", // loading | out | in
@@ -389,6 +413,8 @@
     notes: [],
     noteDraft: "",
     hasUnreadNotes: false,
+    notePhotoUrl: null,
+    notePhotoUploading: false,
   };
 
   var HELPER_DENOMS = [5, 10, 20, 50, 100, 200, 500, 1000, 2000];
@@ -555,7 +581,8 @@
     lock: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
     users: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
     calc: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8" y2="11.01"/><line x1="12" y1="11" x2="12" y2="11.01"/><line x1="16" y1="11" x2="16" y2="11.01"/><line x1="8" y1="15" x2="8" y2="15.01"/><line x1="12" y1="15" x2="12" y2="15.01"/><line x1="16" y1="15" x2="16" y2="15.01"/><line x1="8" y1="19" x2="8" y2="19.01"/><line x1="12" y1="19" x2="12" y2="19.01"/><line x1="16" y1="19" x2="16" y2="19.01"/></svg>',
-    box: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg>'
+    box: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg>',
+    camera: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg>'
   };
   function icon(name, size, weight) {
     return ICONS[name].replace(/{s}/g, size || 20).replace(/{w}/g, weight || 2);
@@ -820,6 +847,57 @@
   }
 
   // ---------- notes page ----------
+  function compressImageFile(file, maxDim, quality, cb) {
+    var img = new Image();
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      img.onload = function () {
+        var w = img.width, h = img.height;
+        var scale = Math.min(1, maxDim / Math.max(w, h));
+        var cw = Math.max(1, Math.round(w * scale));
+        var ch = Math.max(1, Math.round(h * scale));
+        var canvas = document.createElement("canvas");
+        canvas.width = cw; canvas.height = ch;
+        var ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, cw, ch);
+        canvas.toBlob(function (blob) { cb(blob); }, "image/jpeg", quality);
+      };
+      img.onerror = function () { cb(null); };
+      img.src = e.target.result;
+    };
+    reader.onerror = function () { cb(null); };
+    reader.readAsDataURL(file);
+  }
+
+  function uploadNotePhoto(file) {
+    if (!supabaseClient) { alert("خدمة الصور غير متوفرة حاليا"); return; }
+    state.notePhotoUploading = true;
+    render();
+    compressImageFile(file, 1000, 0.65, function (blob) {
+      if (!blob) {
+        state.notePhotoUploading = false;
+        alert("تعذر قراءة الصورة");
+        render();
+        return;
+      }
+      var fileName = "note_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8) + ".jpg";
+      supabaseClient.storage.from(SUPABASE_BUCKET).upload(fileName, blob, { contentType: "image/jpeg" })
+        .then(function (result) {
+          if (result.error) throw result.error;
+          var pub = supabaseClient.storage.from(SUPABASE_BUCKET).getPublicUrl(fileName);
+          state.notePhotoUrl = pub.data.publicUrl;
+          state.notePhotoUploading = false;
+          render();
+        })
+        .catch(function (err) {
+          console.error(err);
+          state.notePhotoUploading = false;
+          alert("تعذر رفع الصورة، حاول مرة أخرى");
+          render();
+        });
+    });
+  }
+
   function renderNotes() {
     var html = "";
     html += '<div class="header">';
@@ -842,7 +920,8 @@
         html += '  <button class="note-check" data-id="' + esc(n.id) + '" aria-label="تم الإنجاز">' + (n.done ? icon("check", 16, 3) : '') + '</button>';
         html += '  <div class="note-body">';
         html += '    <div class="note-meta"><span class="note-author">' + esc(n.author) + '</span><span class="note-time">' + esc(timeAgo(n.createdAt)) + '</span></div>';
-        html += '    <div class="note-text">' + esc(n.text) + '</div>';
+        if (n.photoUrl) html += '    <img class="note-photo" src="' + esc(n.photoUrl) + '" alt="صورة" />';
+        if (n.text) html += '    <div class="note-text">' + esc(n.text) + '</div>';
         html += '  </div>';
         html += '</div>';
       });
@@ -850,9 +929,21 @@
     html += '</div>';
 
     html += '<div class="note-compose">';
+    if (state.notePhotoUploading || state.notePhotoUrl) {
+      html += '  <div class="note-photo-preview">';
+      if (state.notePhotoUploading) {
+        html += '    <div class="note-photo-loading">جاري رفع الصورة...</div>';
+      } else {
+        html += '    <img src="' + esc(state.notePhotoUrl) + '" />';
+        html += '    <button id="notePhotoRemove" class="note-photo-remove" aria-label="حذف الصورة">' + icon("x", 14, 3) + '</button>';
+      }
+      html += '  </div>';
+    }
     html += '  <div class="note-compose-row">';
+    html += '    <input type="file" id="notePhotoInput" accept="image/*" capture="environment" style="display:none" />';
+    html += '    <button id="notePhotoBtn" class="note-photo-btn" aria-label="إضافة صورة">' + icon("camera", 20) + '</button>';
     html += '    <textarea id="noteDraftInput" placeholder="اكتب ملاحظة... (مثلا: فلان خدا قرعة وما خلصش)" rows="1">' + esc(state.noteDraft) + '</textarea>';
-    html += '    <button id="noteSendBtn" class="note-send-btn"' + (state.noteDraft.trim() ? "" : " disabled") + '>' + icon("send", 18) + '</button>';
+    html += '    <button id="noteSendBtn" class="note-send-btn"' + ((state.noteDraft.trim() || state.notePhotoUrl) ? "" : " disabled") + '>' + icon("send", 18) + '</button>';
     html += '  </div>';
     html += '</div>';
 
@@ -868,12 +959,30 @@
         e.target.style.height = "auto";
         e.target.style.height = Math.min(e.target.scrollHeight, 100) + "px";
         var sendBtn = document.getElementById("noteSendBtn");
-        if (sendBtn) sendBtn.disabled = !state.noteDraft.trim();
+        if (sendBtn) sendBtn.disabled = !(state.noteDraft.trim() || state.notePhotoUrl);
       };
       draft.focus();
     }
     var sendBtn = document.getElementById("noteSendBtn");
     if (sendBtn) sendBtn.onclick = sendNote;
+
+    var photoBtn = document.getElementById("notePhotoBtn");
+    var photoInput = document.getElementById("notePhotoInput");
+    if (photoBtn && photoInput) {
+      photoBtn.onclick = function () { photoInput.click(); };
+      photoInput.onchange = function (e) {
+        var file = e.target.files && e.target.files[0];
+        if (file) uploadNotePhoto(file);
+        photoInput.value = "";
+      };
+    }
+    var photoRemove = document.getElementById("notePhotoRemove");
+    if (photoRemove) {
+      photoRemove.onclick = function () {
+        state.notePhotoUrl = null;
+        render();
+      };
+    }
 
     var checkBtns = document.querySelectorAll(".note-check");
     checkBtns.forEach(function (btn) {
@@ -888,13 +997,17 @@
 
   function sendNote() {
     var text = state.noteDraft.trim();
-    if (!text) return;
+    var photoUrl = state.notePhotoUrl;
+    if (!text && !photoUrl) return;
     state.noteDraft = "";
-    notesCol().add({
+    state.notePhotoUrl = null;
+    var noteData = {
       text: text,
       author: state.myName,
       createdAt: serverTimestamp()
-    }).catch(function (e) { console.error(e); });
+    };
+    if (photoUrl) noteData.photoUrl = photoUrl;
+    notesCol().add(noteData).catch(function (e) { console.error(e); });
     render();
   }
 

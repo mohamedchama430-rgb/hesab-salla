@@ -320,6 +320,8 @@
     background: var(--red); color: #fff; border: none; display: flex; align-items: center; justify-content: center; padding: 0;
   }
   .note-photo { max-width: 100%; border-radius: 10px; margin: 6px 0; display: block; }
+  .note-del-btn { margin-top: 4px; }
+  .note-confirm-del { margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -413,6 +415,7 @@
     notes: [],
     noteDraft: "",
     hasUnreadNotes: false,
+    confirmDeleteNoteId: null,
     notePhotoUrl: null,
     notePhotoUploading: false,
   };
@@ -922,6 +925,16 @@
         html += '    <div class="note-meta"><span class="note-author">' + esc(n.author) + '</span><span class="note-time">' + esc(timeAgo(n.createdAt)) + '</span></div>';
         if (n.photoUrl) html += '    <img class="note-photo" src="' + esc(n.photoUrl) + '" alt="صورة" />';
         if (n.text) html += '    <div class="note-text">' + esc(n.text) + '</div>';
+        if (n.author === state.myName) {
+          if (state.confirmDeleteNoteId === n.id) {
+            html += '    <div class="confirm-del note-confirm-del">';
+            html += '      <button class="yes" data-note-del-confirm="' + esc(n.id) + '">' + icon("check", 13) + ' حذف</button>';
+            html += '      <button class="no" data-note-del-cancel="' + esc(n.id) + '">' + icon("x", 13) + '</button>';
+            html += '    </div>';
+          } else {
+            html += '    <button class="del-btn note-del-btn" data-note-del-ask="' + esc(n.id) + '" aria-label="حذف الملاحظة">' + icon("trash", 15) + '</button>';
+          }
+        }
         html += '  </div>';
         html += '</div>';
       });
@@ -993,6 +1006,36 @@
         notesCol().doc(id).update({ done: newDone }).catch(function (e) { console.error(e); });
       };
     });
+
+    document.querySelectorAll("[data-note-del-ask]").forEach(function (btn) {
+      btn.onclick = function () { state.confirmDeleteNoteId = btn.getAttribute("data-note-del-ask"); render(); };
+    });
+    document.querySelectorAll("[data-note-del-cancel]").forEach(function (btn) {
+      btn.onclick = function () { state.confirmDeleteNoteId = null; render(); };
+    });
+    document.querySelectorAll("[data-note-del-confirm]").forEach(function (btn) {
+      btn.onclick = function () {
+        var id = btn.getAttribute("data-note-del-confirm");
+        state.confirmDeleteNoteId = null;
+        deleteNote(id);
+        render();
+      };
+    });
+  }
+
+  function deleteNote(id) {
+    var note = state.notes.find(function (n) { return n.id === id; });
+    notesCol().doc(id).delete().catch(function (e) { console.error(e); });
+    if (note && note.photoUrl && supabaseClient) {
+      try {
+        var marker = "/" + SUPABASE_BUCKET + "/";
+        var idx = note.photoUrl.indexOf(marker);
+        if (idx !== -1) {
+          var fileName = note.photoUrl.slice(idx + marker.length).split("?")[0];
+          supabaseClient.storage.from(SUPABASE_BUCKET).remove([fileName]).catch(function (e) { console.error(e); });
+        }
+      } catch (e) { console.error(e); }
+    }
   }
 
   function sendNote() {

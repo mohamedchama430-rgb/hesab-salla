@@ -171,12 +171,15 @@
   .clear-btn { display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--red); background: none; border: none; }
   .history-empty { font-size: 14px; text-align: center; padding: 16px 0; color: var(--textDim); }
   .history-item {
-    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    width: 100%; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px;
     padding: 8px; border-radius: 8px; background: none; border: none; border-bottom: 1px solid var(--borderSoft);
     text-align: left;
   }
-  .history-item .expr { font-size: 14px; color: var(--textDim); direction: ltr; }
-  .history-item .res { font-size: 14px; font-weight: 700; color: var(--amber); direction: ltr; }
+  .history-item .expr {
+    font-size: 14px; color: var(--textDim); direction: ltr;
+    flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; word-break: break-all; white-space: normal;
+  }
+  .history-item .res { font-size: 14px; font-weight: 700; color: var(--amber); direction: ltr; flex-shrink: 0; }
 
   /* calculator */
   .calc-page { padding: 0 16px 16px; display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
@@ -188,7 +191,7 @@
   .hist-toggle { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; padding: 7px 12px; border-radius: 10px; background: none; border: none; color: var(--textDim); }
   .hist-toggle.active { color: var(--amber); background: rgba(215,255,75,0.12); }
   .lamp-toggle { color: var(--amber); }
-  .calc-display { text-align: right; font-size: 46px; font-weight: 800; margin-bottom: 18px; color: var(--amber); direction: ltr; min-height: 56px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .calc-display { text-align: right; font-size: 46px; font-weight: 800; margin-bottom: 18px; color: var(--amber); direction: ltr; min-height: 56px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: font-size 0.1s; }
   .calc-row { display: flex; align-items: center; gap: 10px; }
   .calc-row input {
     flex: 1; border-radius: 12px; padding: 16px 16px; font-size: 21px; direction: ltr;
@@ -1207,11 +1210,12 @@
     });
 
     var calcInput = document.getElementById("calcInput");
+    fitCalcDisplay(document.querySelector(".calc-display"));
     if (calcInput) {
       calcInput.oninput = function (e) {
         state.calcExpr = e.target.value;
         var disp = document.querySelector(".calc-display");
-        if (disp) disp.textContent = liveCalcDisplay();
+        if (disp) { disp.textContent = liveCalcDisplay(); fitCalcDisplay(disp); }
       };
       calcInput.onkeydown = function (e) { if (e.key === "Enter") runCalc(); };
       calcInput.onfocus = function () {
@@ -1292,6 +1296,14 @@
     productsCol(state.myUid).add({ name: name, biro: "", makhzan: "", createdAt: serverTimestamp() })
       .catch(function (e) { console.error(e); });
     render();
+  }
+
+  function fitCalcDisplay(el) {
+    if (!el) return;
+    var len = (el.textContent || "").length;
+    var size = 46;
+    if (len > 7) size = Math.max(20, 46 - (len - 7) * 3);
+    el.style.fontSize = size + "px";
   }
 
   function liveCalcDisplay() {

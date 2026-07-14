@@ -154,6 +154,18 @@
 
   .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .field-label { font-size: 12px; font-weight: 600; color: var(--textDim); margin-bottom: 4px; padding: 0 4px; }
+
+  /* compact single-row card */
+  .card.card-row { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
+  .card-name { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+  .card-name h3 { font-size: 14px; font-weight: 700; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-sum-mini { font-size: 11px; font-weight: 700; color: var(--amber); direction: ltr; text-align: right; white-space: nowrap; }
+  .mini-field { flex-shrink: 0; width: 58px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .mini-field .field-label { font-size: 10px; font-weight: 600; margin: 0; padding: 0; text-align: center; }
+  .mini-field .value-field { width: 100%; padding: 6px 2px; font-size: 15px; text-align: center; border-radius: 8px; }
+  .card-row .del-btn { flex-shrink: 0; padding: 4px; }
+  .card-row .confirm-del { flex-shrink: 0; gap: 3px; }
+  .card-row .confirm-del .yes { padding: 5px 6px; }
   .value-field {
     width: 100%; text-align: left; border-radius: 10px; padding: 8px 12px; font-size: 17px; font-weight: 700;
     background: var(--panelAlt); border: 1px solid var(--border); color: var(--textDim); outline: none;
@@ -1162,28 +1174,26 @@
     var makhzanVal = evaluateExpr(fieldValue(p, "makhzan"));
     var sum = (biroVal !== null ? biroVal : 0) + (makhzanVal !== null ? makhzanVal : 0);
     var hasAny = biroVal !== null || makhzanVal !== null;
-    var h = '<div class="card">';
+    var h = '<div class="card card-row">';
     h += '  <span class="rivet r"></span><span class="rivet l"></span>';
-    h += '  <div class="card-top">';
+    h += '  <div class="card-name">';
     h += '    <h3>' + esc(p.name) + '</h3>';
     if (hasAny) {
-      h += '    <span class="card-sum">مجموع <b class="mono">' + esc(formatNumber(sum)) + '</b></span>';
+      h += '    <span class="card-sum-mini mono">مجموع ' + esc(formatNumber(sum)) + '</span>';
     }
+    h += '  </div>';
+    h += '  <div class="mini-field"><div class="field-label">بيرو</div><input class="value-field' + (fieldValue(p, "biro") ? " filled" : "") + (state.isReadOnly ? " ro" : "") + ' mono" inputmode="none" autocomplete="off" data-field="biro" data-id="' + p.id + '" value="' + esc(fieldValue(p, "biro")) + '" placeholder="0"' + (state.isReadOnly ? " readonly" : "") + ' /></div>';
+    h += '  <div class="mini-field"><div class="field-label">مخزن</div><input class="value-field' + (fieldValue(p, "makhzan") ? " filled" : "") + (state.isReadOnly ? " ro" : "") + ' mono" inputmode="none" autocomplete="off" data-field="makhzan" data-id="' + p.id + '" value="' + esc(fieldValue(p, "makhzan")) + '" placeholder="0"' + (state.isReadOnly ? " readonly" : "") + ' /></div>';
     if (!state.isReadOnly) {
       if (state.confirmDeleteId === p.id) {
-        h += '    <div class="confirm-del">';
-        h += '      <button class="yes" data-del-confirm="' + p.id + '">' + icon("check", 13) + ' حذف</button>';
-        h += '      <button class="no" data-del-cancel="' + p.id + '">' + icon("x", 13) + '</button>';
-        h += '    </div>';
+        h += '  <div class="confirm-del">';
+        h += '    <button class="yes" data-del-confirm="' + p.id + '">' + icon("check", 13) + '</button>';
+        h += '    <button class="no" data-del-cancel="' + p.id + '">' + icon("x", 13) + '</button>';
+        h += '  </div>';
       } else {
-        h += '    <button class="del-btn" data-del-ask="' + p.id + '" aria-label="حذف المنتج">' + icon("trash", 16) + '</button>';
+        h += '  <button class="del-btn" data-del-ask="' + p.id + '" aria-label="حذف المنتج">' + icon("trash", 15) + '</button>';
       }
     }
-    h += '  </div>';
-    h += '  <div class="card-grid">';
-    h += '    <div><div class="field-label">بيرو</div><input class="value-field' + (fieldValue(p, "biro") ? " filled" : "") + (state.isReadOnly ? " ro" : "") + ' mono" inputmode="none" autocomplete="off" data-field="biro" data-id="' + p.id + '" value="' + esc(fieldValue(p, "biro")) + '" placeholder="0"' + (state.isReadOnly ? " readonly" : "") + ' /></div>';
-    h += '    <div><div class="field-label">مخزن</div><input class="value-field' + (fieldValue(p, "makhzan") ? " filled" : "") + (state.isReadOnly ? " ro" : "") + ' mono" inputmode="none" autocomplete="off" data-field="makhzan" data-id="' + p.id + '" value="' + esc(fieldValue(p, "makhzan")) + '" placeholder="0"' + (state.isReadOnly ? " readonly" : "") + ' /></div>';
-    h += '  </div>';
     h += '</div>';
     return h;
   }

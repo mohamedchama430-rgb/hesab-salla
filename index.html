@@ -89,9 +89,11 @@
   .add-row { display: none; align-items: center; gap: 8px; margin-top: 12px; }
   .add-row.open { display: flex; }
   .add-row input {
-    flex: 1; border-radius: 10px; padding: 10px 12px; font-size: 16px; font-weight: 600;
+    border-radius: 10px; padding: 10px 12px; font-size: 16px; font-weight: 600;
     background: var(--panelAlt); border: 1px solid var(--amber); color: var(--text); outline: none;
   }
+  .add-row #newNameInput { flex: 1; min-width: 0; }
+  .add-row #newPriceInput { width: 92px; flex-shrink: 0; text-align: center; }
   .add-row .confirm-btn {
     width: 40px; height: 40px; border-radius: 10px; background: var(--teal); color: #04211C;
     border: none; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
@@ -110,6 +112,22 @@
     border-radius: 10px; background: rgba(215,255,75,0.12); border: 1px solid rgba(215,255,75,0.3);
     color: var(--amber); font-size: 12px; font-weight: 700;
   }
+
+  /* sort menu (products view) */
+  .sort-wrap { position: relative; flex-shrink: 0; }
+  .sort-menu {
+    position: absolute; top: 50px; right: 0; z-index: 30; min-width: 190px;
+    max-width: calc(100vw - 32px);
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 6px; box-shadow: 0 10px 26px rgba(0,0,0,0.45);
+  }
+  .sort-menu button {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
+    padding: 9px 10px; border-radius: 8px; background: none; border: none; color: var(--text);
+    font-size: 13px; font-weight: 600; text-align: right;
+  }
+  .sort-menu button.active { background: rgba(215,255,75,0.12); color: var(--amber); }
+  .sort-menu button + button { margin-top: 2px; }
 
   /* main view switcher (calculator / products) */
   .view-tabs { display: flex; gap: 8px; margin-top: 12px; }
@@ -417,6 +435,9 @@
     history: [],
     adding: false,
     newName: "",
+    newPrice: "",
+    sortMode: "default", // "default" | "price_desc" | "price_asc" | "name"
+    sortMenuOpen: false,
     calcExpr: "",
     calcDisplay: "0",
     calcJustEqualed: false,
@@ -546,6 +567,21 @@
     if (diff < 86400) return Math.floor(diff / 3600) + " سا";
     return d.toLocaleDateString("ar-MA", { day: "numeric", month: "short" });
   }
+  function productPrice(p) {
+    var v = evaluateExpr(p.price);
+    return v !== null ? v : 0;
+  }
+  function getSortedProducts() {
+    var list = state.products.slice();
+    if (state.sortMode === "price_desc") {
+      list.sort(function (a, b) { return productPrice(b) - productPrice(a); });
+    } else if (state.sortMode === "price_asc") {
+      list.sort(function (a, b) { return productPrice(a) - productPrice(b); });
+    } else if (state.sortMode === "name") {
+      list.sort(function (a, b) { return (a.name || "").localeCompare((b.name || ""), "ar"); });
+    }
+    return list;
+  }
   function fieldValue(p, field) {
     if (state.keypadTarget && state.keypadTarget.type === "product" &&
         state.keypadTarget.id === p.id && state.keypadTarget.field === field) {
@@ -583,7 +619,8 @@
     box: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg>',
     camera: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg>',
     delete: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>',
-    grip: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>'
+    grip: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
+    sort: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="14" y2="6"/><line x1="4" y1="12" x2="11" y2="12"/><line x1="4" y1="18" x2="8" y2="18"/><path d="M17 4v16"/><path d="M13 8l4-4 4 4"/><path d="M21 16l-4 4-4-4"/></svg>'
   };
   function icon(name, size, weight) {
     return ICONS[name].replace(/{s}/g, size || 20).replace(/{w}/g, weight || 2);
@@ -636,6 +673,18 @@
     html += '    <div><h1>حساب الصالة</h1><p class="sub">صالة الحديد &middot; ' + esc(state.myName) + '</p></div>';
     html += '    <div class="header-actions">';
     html += '      <button id="notesBtn" class="icon-btn ghost" aria-label="الملاحظات">' + icon("note", 20, 2) + (state.hasUnreadNotes ? '<span class="notif-dot"></span>' : '') + '</button>';
+    if (state.activeView === "products") {
+      html += '      <div class="sort-wrap">';
+      html += '        <button id="sortToggleBtn" class="icon-btn ghost' + (state.sortMode !== "default" ? " active-toggle" : "") + '" aria-label="ترتيب المنتجات">' + icon("sort", 18, 2) + '</button>';
+      if (state.sortMenuOpen) {
+        html += '        <div class="sort-menu slide-up">';
+        [["default", "افتراضي"], ["price_desc", "الثمن: الأكبر أولا"], ["price_asc", "الثمن: الأصغر أولا"], ["name", "الاسم: أبجدي"]].forEach(function (opt) {
+          html += '<button data-sort-mode="' + opt[0] + '" class="' + (state.sortMode === opt[0] ? "active" : "") + '">' + opt[1] + (state.sortMode === opt[0] ? icon("check", 15, 2.5) : "") + '</button>';
+        });
+        html += '        </div>';
+      }
+      html += '      </div>';
+    }
     if (!state.isReadOnly && state.activeView === "products") {
       html += '      <button id="addToggleBtn" class="add-btn" aria-label="زيد منتج">' + icon(state.adding ? "x" : "plus", 22, 2.5) + '</button>';
     }
@@ -667,6 +716,7 @@
     if (!state.isReadOnly && state.activeView === "products") {
       html += '  <div class="add-row slide-up' + (state.adding ? " open" : "") + '">';
       html += '    <input id="newNameInput" type="text" placeholder="سمّي المنتج..." value="' + esc(state.newName) + '" />';
+      html += '    <input id="newPriceInput" class="mono" type="text" inputmode="decimal" placeholder="الثمن" value="' + esc(state.newPrice) + '" />';
       html += '    <button id="confirmAddBtn" class="confirm-btn">' + icon("check", 20, 2.5) + '</button>';
       html += '  </div>';
     }
@@ -687,7 +737,7 @@
         html += '  <p class="sub">' + (state.isReadOnly ? "هاد الخدام مازال ما زاد حتى منتج" : "اضغط على + باش تزيد أول سلعة") + '</p>';
         html += '</div>';
       } else {
-        state.products.forEach(function (p) { html += renderCard(p); });
+        getSortedProducts().forEach(function (p) { html += renderCard(p); });
       }
       html += '</div>';
     } else {
@@ -1367,7 +1417,7 @@
     var hasAny = biroVal !== null || makhzanVal !== null;
     var h = '<div class="card card-row" data-product-id="' + p.id + '">';
     h += '  <span class="rivet r"></span><span class="rivet l"></span>';
-    if (!state.isReadOnly) {
+    if (!state.isReadOnly && state.sortMode === "default") {
       h += '  <button type="button" class="drag-handle" aria-label="اسحب باش تبدل بلاصة المنتج">' + icon("grip", 18, 2) + '</button>';
     }
     h += '  <div class="card-name">';
@@ -1414,6 +1464,7 @@
         state.keypadTarget = null;
         state.kpBuffer = "";
         state.adding = false;
+        state.sortMenuOpen = false;
         render();
       };
     });
@@ -1425,10 +1476,25 @@
       };
     });
 
+    var sortToggleBtn = document.getElementById("sortToggleBtn");
+    if (sortToggleBtn) sortToggleBtn.onclick = function (e) {
+      e.stopPropagation();
+      state.sortMenuOpen = !state.sortMenuOpen;
+      render();
+    };
+    document.querySelectorAll("[data-sort-mode]").forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        state.sortMode = btn.getAttribute("data-sort-mode");
+        state.sortMenuOpen = false;
+        render();
+      };
+    });
+
     var addToggleBtn = document.getElementById("addToggleBtn");
     if (addToggleBtn) addToggleBtn.onclick = function () {
       state.adding = !state.adding;
-      if (!state.adding) state.newName = "";
+      if (!state.adding) { state.newName = ""; state.newPrice = ""; }
       render();
       if (state.adding) {
         var inp = document.getElementById("newNameInput");
@@ -1440,6 +1506,11 @@
     if (newNameInput) {
       newNameInput.oninput = function (e) { state.newName = e.target.value; };
       newNameInput.onkeydown = function (e) { if (e.key === "Enter") addProduct(); };
+    }
+    var newPriceInput = document.getElementById("newPriceInput");
+    if (newPriceInput) {
+      newPriceInput.oninput = function (e) { state.newPrice = e.target.value; };
+      newPriceInput.onkeydown = function (e) { if (e.key === "Enter") addProduct(); };
     }
     var confirmAddBtn = document.getElementById("confirmAddBtn");
     if (confirmAddBtn) confirmAddBtn.onclick = addProduct;
@@ -1492,8 +1563,27 @@
       btn.onclick = function () {
         var id = btn.getAttribute("data-del-confirm");
         state.confirmDeleteId = null;
-        db.from("products").delete().eq("id", id).then(function (r) { if (r.error) console.error(r.error); });
+        var uid = state.viewingUid;
+        var removed = state.products.find(function (p) { return p.id === id; });
+        var removedIndex = state.products.indexOf(removed);
+        state.products = state.products.filter(function (p) { return p.id !== id; });
+        reorderSuppressed = true;
         render();
+        db.from("products").delete().eq("id", id).then(function (r) {
+          if (r.error) {
+            console.error(r.error);
+            // restore locally if the delete failed server-side
+            if (removed && removedIndex !== -1) {
+              state.products.splice(removedIndex, 0, removed);
+              render();
+            }
+          }
+        }).catch(function (err) {
+          console.error(err);
+        }).then(function () {
+          reorderSuppressed = false;
+          if (uid) loadProducts(uid);
+        });
       };
     });
 
@@ -1606,9 +1696,12 @@
   function addProduct() {
     var name = state.newName.trim();
     if (!name) { state.adding = false; render(); return; }
+    var priceResult = evaluateExpr(state.newPrice);
+    var priceVal = priceResult !== null ? String(priceResult) : "";
     state.newName = "";
+    state.newPrice = "";
     state.adding = false;
-    db.from("products").insert({ owner_id: state.myUid, name: name, biro: "", makhzan: "" })
+    db.from("products").insert({ owner_id: state.myUid, name: name, biro: "", makhzan: "", price: priceVal })
       .then(function (r) { if (r.error) console.error(r.error); });
     render();
   }
@@ -1786,6 +1879,12 @@
 
   // ---------- init ----------
   document.addEventListener("pointerdown", function (e) {
+    if (!state.sortMenuOpen) return;
+    if (e.target.closest && e.target.closest(".sort-wrap")) return;
+    state.sortMenuOpen = false;
+    render();
+  });
+  document.addEventListener("pointerdown", function (e) {
     if (!state.keypadTarget) return;
     if (state.activeView === "calc" && state.keypadTarget.type === "calc") return; // pinned, stays open
     var withinKeypad = e.target.closest && e.target.closest(".keypad-wrap");
@@ -1797,7 +1896,7 @@
   // grab a product's drag handle to reorder the list — starts immediately on
   // touch/press of the handle (no long-press race against native scroll/selection gestures)
   document.addEventListener("pointerdown", function (e) {
-    if (state.isReadOnly || state.activeView !== "products") return;
+    if (state.isReadOnly || state.activeView !== "products" || state.sortMode !== "default") return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     var handle = e.target.closest && e.target.closest(".drag-handle");
     if (!handle) return;

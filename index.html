@@ -340,68 +340,54 @@
 <div id="app"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
 <script>
 (function () {
   "use strict";
 
   // ==========================================================================
-  // إعدادات Firebase - بدّل هاد المعطيات بلي غادي تاخد من Firebase Console
-  // (Project settings -> عام -> "Your apps" -> Firebase SDK snippet -> Config)
+  // إعدادات Supabase - بدّل هاد المعطيات بلي غادي تاخد من Supabase Dashboard
+  // (Project settings -> API -> Project URL / anon public key)
   // ==========================================================================
-  var firebaseConfig = {
-    apiKey: "AIzaSyBWpKPUF1O-MR9TAeED6dJ6B8k7vcilbnc",
-    authDomain: "sallgymhouse15eme.firebaseapp.com",
-    projectId: "sallgymhouse15eme",
-    storageBucket: "sallgymhouse15eme.firebasestorage.app",
-    messagingSenderId: "107819940333",
-    appId: "1:107819940333:web:aca80fe0b279b413f78fe4",
-    measurementId: "G-CGZ7W8RH96"
-  };
-
-  // لائحة الخدامين الثلاثة. بدّل الأسماء بحسب لي بغيتي تبان فالتطبيق.
-  // الإيميلات هادو ماشي حقيقيين، غير معرفات باش نديرو بيهم الدخول فـFirebase Authentication.
-  // خاصك تزيد 3 مستخدمين بهاد الإيميلات (وكلمات سر لي كل واحد كيختارها) من
-  // Firebase Console -> Authentication -> Users -> Add user.
-  var WORKERS = [
-    { name: "شمسو", email: "chamso@hasbatsalla.app" },
-    { name: "محمد", email: "mohamed@hasbatsalla.app" },
-    { name: "عبدوهاب", email: "abdelouahab@hasbatsalla.app" }
-  ];
-  // ==========================================================================
-
-  firebase.initializeApp(firebaseConfig);
-  var auth = firebase.auth();
-  var db = firebase.firestore();
-  try { db.enablePersistence({ synchronizeTabs: true }).catch(function () {}); } catch (e) {}
-
-  var serverTimestamp = firebase.firestore.FieldValue.serverTimestamp;
-
-  // ---------- supabase (تخزين صور الملاحظات فقط) ----------
   var SUPABASE_URL = "https://nsmxrtvzjgwiyscfildu.supabase.co";
   var SUPABASE_ANON_KEY = "sb_publishable_ZhwzJGgN0tqLfI0wf91XBw_uo3OKKWD";
   var SUPABASE_BUCKET = "note-photos";
-  var supabaseClient = null;
-  try {
-    if (window.supabase) {
-      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    }
-  } catch (e) { console.error("Supabase init failed:", e); }
+  // اسم الـEdge Function لي كتدير عمليات admin (زيادة/تعطيل خدام) - شوف supabase/functions/admin-manage-worker
+  var ADMIN_FN_NAME = "admin-manage-worker";
+  // ==========================================================================
+
+  var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  var db = supabaseClient; // اسم مختصر مستعمل فبقية الكود
 
   // ---------- state ----------
   var state = {
     authState: "loading", // loading | out | in
     authError: "",
     authBusy: false,
-    loginName: WORKERS[0].name,
+    loginEmail: "",
     loginPassword: "",
 
     myName: null,
     myUid: null,
-    directory: {}, // name -> uid, once each worker has logged in at least once
+    myRole: "worker", // "admin" | "worker"
+    workers: [], // { id(uid), name, role, active } -- من جدول profiles، بديل WORKERS/directory القدام
+    directory: {}, // name -> uid (مبني من state.workers، باش يبقى بقية الكود بلا تبديل)
+
+    adminOpen: false,
+    adminBusy: false,
+    adminError: "",
+    newWorkerName: "",
+    newWorkerEmail: "",
+    newWorkerPassword: "",
+    confirmDisableUid: null,
+
+    editingWorkerId: null,
+    workerEditEmail: "",
+    workerEditPassword: "",
+    workerEditBusy: false,
+    workerEditError: "",
+    confirmDeleteWorkerId: null,
+    workerDeleteBusy: false,
 
     viewingName: null, // whose data is currently shown
     viewingUid: null,
@@ -452,15 +438,18 @@
   }
 
   function workerByName(name) {
-    for (var i = 0; i < WORKERS.length; i++) if (WORKERS[i].name === name) return WORKERS[i];
+    for (var i = 0; i < state.workers.length; i++) if (state.workers[i].name === name) return state.workers[i];
     return null;
   }
 
-  // ---------- firestore paths ----------
-  function productsCol(uid) { return db.collection("users").doc(uid).collection("products"); }
-  function historyCol(uid) { return db.collection("users").doc(uid).collection("history"); }
-  function notesCol() { return db.collection("sharedNotes"); }
-  function directoryDoc() { return db.collection("publicProfiles").doc("directory"); }
+  // ---------- helper: نبعثو عملية admin للـEdge Function ----------
+  function callAdminFn(payload) {
+    return supabaseClient.functions.invoke(ADMIN_FN_NAME, { body: payload }).then(function (res) {
+      if (res.error) throw res.error;
+      if (res.data && res.data.error) throw new Error(res.data.error);
+      return res.data;
+    });
+  }
 
   // ---------- helpers ----------
   function arabicToWesternDigits(str) {
@@ -521,7 +510,7 @@
     else newVal = buffer;
     var patch = {};
     patch[target.field] = newVal;
-    productsCol(state.viewingUid).doc(target.id).update(patch).catch(function (e) { console.error(e); });
+    db.from("products").update(patch).eq("id", target.id).then(function (r) { if (r.error) console.error(r.error); });
   }
 
   function helperFieldValue(denom) {
@@ -630,6 +619,10 @@
       renderHistoryPage();
       return;
     }
+    if (state.adminOpen) {
+      renderAdminPanel();
+      return;
+    }
 
     var html = "";
 
@@ -656,6 +649,9 @@
       html += '      <button id="addToggleBtn" class="add-btn" aria-label="زيد منتج">' + icon(state.adding ? "x" : "plus", 22, 2.5) + '</button>';
     }
     html += '      <button id="workersToggleBtn" class="icon-btn ghost' + (state.workerTabsOpen ? " active-toggle" : "") + '" aria-label="الخدامين">' + icon("users", 18, 2) + '</button>';
+    if (state.myRole === "admin") {
+      html += '      <button id="adminOpenBtn" class="icon-btn ghost" aria-label="إدارة الخدامين">' + icon("lock", 16, 2) + '</button>';
+    }
     html += '      <button id="logoutBtn" class="icon-btn ghost" aria-label="خروج">' + icon("logout", 18, 2) + '</button>';
     html += '    </div>';
     html += '  </div>';
@@ -669,7 +665,7 @@
     // worker tabs (collapsible)
     if (state.workerTabsOpen) {
       html += '  <div class="worker-tabs slide-up">';
-      WORKERS.forEach(function (w) {
+      state.workers.filter(function (w) { return w.active || w.name === state.myName; }).forEach(function (w) {
         var available = w.name === state.myName || !!state.directory[w.name];
         var active = w.name === state.viewingName;
         html += '<button class="worker-tab' + (active ? " active" : "") + (available ? "" : " disabled") + '" data-worker-tab="' + esc(w.name) + '"' + (available ? "" : " disabled") + '>' + esc(w.name) + '</button>';
@@ -805,12 +801,8 @@
     html += '    <h1>حساب الصالة</h1>';
     html += '    <p class="sub">دخول صالة الحديد</p>';
     html += '    <div class="auth-field">';
-    html += '      <label>شكون نتا؟</label>';
-    html += '      <select id="loginNameSelect">';
-    WORKERS.forEach(function (w) {
-      html += '<option value="' + esc(w.name) + '"' + (w.name === state.loginName ? " selected" : "") + '>' + esc(w.name) + '</option>';
-    });
-    html += '      </select>';
+    html += '      <label>الإيميل</label>';
+    html += '      <input id="loginEmailInput" type="email" placeholder="name@hasbatsalla.app" value="' + esc(state.loginEmail) + '" autocomplete="username" />';
     html += '    </div>';
     html += '    <div class="auth-field">';
     html += '      <label>كلمة السر</label>';
@@ -822,8 +814,8 @@
     html += '</div>';
     root.innerHTML = html;
 
-    var sel = document.getElementById("loginNameSelect");
-    if (sel) sel.onchange = function (e) { state.loginName = e.target.value; };
+    var emailEl = document.getElementById("loginEmailInput");
+    if (emailEl) emailEl.oninput = function (e) { state.loginEmail = e.target.value; };
     var pw = document.getElementById("loginPasswordInput");
     if (pw) {
       pw.oninput = function (e) { state.loginPassword = e.target.value; };
@@ -835,30 +827,27 @@
 
   function doLogin() {
     if (state.authBusy) return;
-    var worker = workerByName(state.loginName);
-    if (!worker) return;
-    if (!state.loginPassword) {
-      state.authError = "دخل كلمة السر";
+    if (!state.loginEmail || !state.loginPassword) {
+      state.authError = "دخل الإيميل وكلمة السر";
       render();
       return;
     }
     state.authBusy = true;
     state.authError = "";
     render();
-    auth.signInWithEmailAndPassword(worker.email, state.loginPassword)
-      .catch(function (err) {
-        state.authBusy = false;
-        if (err && (err.code === "auth/wrong-password" || err.code === "auth/user-not-found" || err.code === "auth/invalid-credential")) {
-          state.authError = "الاسم أو كلمة السر غالطين";
-        } else {
-          state.authError = "وقع مشكل، جرب مرة أخرى (تأكد من الأنترنت)";
+    db.auth.signInWithPassword({ email: state.loginEmail, password: state.loginPassword })
+      .then(function (res) {
+        if (res.error) {
+          state.authBusy = false;
+          state.authError = "الإيميل أو كلمة السر غالطين";
+          render();
         }
-        render();
+        // النجاح كيتقاد عبر onAuthStateChange
       });
   }
 
   function doLogout() {
-    auth.signOut();
+    db.auth.signOut();
   }
 
   // ---------- notes page ----------
@@ -1015,7 +1004,7 @@
         var id = btn.getAttribute("data-id");
         var note = state.notes.find(function (n) { return n.id === id; });
         var newDone = !(note && note.done);
-        notesCol().doc(id).update({ done: newDone }).catch(function (e) { console.error(e); });
+        db.from("shared_notes").update({ done: newDone }).eq("id", id).then(function (r) { if (r.error) console.error(r.error); });
       };
     });
 
@@ -1037,14 +1026,14 @@
 
   function deleteNote(id) {
     var note = state.notes.find(function (n) { return n.id === id; });
-    notesCol().doc(id).delete().catch(function (e) { console.error(e); });
-    if (note && note.photoUrl && supabaseClient) {
+    db.from("shared_notes").delete().eq("id", id).then(function (r) { if (r.error) console.error(r.error); });
+    if (note && note.photo_url) {
       try {
         var marker = "/" + SUPABASE_BUCKET + "/";
-        var idx = note.photoUrl.indexOf(marker);
+        var idx = note.photo_url.indexOf(marker);
         if (idx !== -1) {
-          var fileName = note.photoUrl.slice(idx + marker.length).split("?")[0];
-          supabaseClient.storage.from(SUPABASE_BUCKET).remove([fileName]).catch(function (e) { console.error(e); });
+          var fileName = note.photo_url.slice(idx + marker.length).split("?")[0];
+          supabaseClient.storage.from(SUPABASE_BUCKET).remove([fileName]).then(function (r) { if (r.error) console.error(r.error); });
         }
       } catch (e) { console.error(e); }
     }
@@ -1058,27 +1047,39 @@
     state.notePhotoUrl = null;
     var noteData = {
       text: text,
-      author: state.myName,
-      createdAt: serverTimestamp()
+      author_id: state.myUid,
+      author_name: state.myName
     };
-    if (photoUrl) noteData.photoUrl = photoUrl;
-    notesCol().add(noteData).catch(function (e) { console.error(e); });
+    if (photoUrl) noteData.photo_url = photoUrl;
+    db.from("shared_notes").insert(noteData).then(function (r) { if (r.error) console.error(r.error); });
     render();
   }
 
-  function subscribeNotes() {
-    if (unsubNotes) unsubNotes();
-    unsubNotes = notesCol().orderBy("createdAt", "desc").limit(200).onSnapshot(function (snap) {
-      state.notes = snap.docs.map(function (d) { var data = d.data(); data.id = d.id; return data; });
+  function notesRowToState(row) {
+    return { id: row.id, text: row.text, author: row.author_name, photoUrl: row.photo_url, done: row.done, createdAt: row.created_at };
+  }
+
+  function loadNotes() {
+    return db.from("shared_notes").select("*").order("created_at", { ascending: false }).limit(200).then(function (res) {
+      if (res.error) { console.error(res.error); return; }
+      state.notes = res.data.map(notesRowToState);
       if (!state.notesOpen) {
         var lastSeen = getNotesLastSeen();
         var unread = state.notes.some(function (n) {
-          return n.author !== state.myName && n.createdAt && n.createdAt.toMillis && n.createdAt.toMillis() > lastSeen;
+          return n.author !== state.myName && n.createdAt && new Date(n.createdAt).getTime() > lastSeen;
         });
         state.hasUnreadNotes = unread;
       }
       render();
-    }, function (err) { console.error(err); });
+    });
+  }
+
+  function subscribeNotes() {
+    if (unsubNotes) { unsubNotes.unsubscribe(); unsubNotes = null; }
+    loadNotes();
+    unsubNotes = db.channel("shared_notes_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "shared_notes" }, function () { loadNotes(); })
+      .subscribe();
   }
 
   function renderHistoryPage() {
@@ -1123,6 +1124,189 @@
         if (item) state.calcExpr = String(item.result);
         state.historyPageOpen = false;
         render();
+      };
+    });
+  }
+
+  // ---------- لوحة admin: زيادة/تعطيل خدامين ----------
+  function renderAdminPanel() {
+    var html = "";
+    html += '<div class="header">';
+    html += '  <div class="header-row">';
+    html += '    <div><h1>إدارة الخدامين</h1><p class="sub">admin غير</p></div>';
+    html += '    <button id="adminBackBtn" class="helper-back-btn" aria-label="رجوع">' + icon("x", 20, 2.5) + '</button>';
+    html += '  </div>';
+    html += '</div>';
+
+    html += '<div class="list">';
+
+    html += '  <div class="add-row open" style="flex-direction:column;align-items:stretch;gap:8px;padding:12px;">';
+    html += '    <input id="newWorkerNameInput" type="text" placeholder="سمية الخدام الجديد" value="' + esc(state.newWorkerName) + '" />';
+    html += '    <input id="newWorkerEmailInput" type="email" placeholder="إيميل (مثلا: karim@hasbatsalla.app)" value="' + esc(state.newWorkerEmail) + '" />';
+    html += '    <input id="newWorkerPasswordInput" type="text" placeholder="كلمة سر مؤقتة" value="' + esc(state.newWorkerPassword) + '" />';
+    html += '    <button id="addWorkerBtn" class="confirm-btn" style="width:100%;"' + (state.adminBusy ? " disabled" : "") + '>' + (state.adminBusy ? "جاري الزيادة..." : "زيد خدام") + '</button>';
+    if (state.adminError) html += '    <p class="auth-error">' + esc(state.adminError) + '</p>';
+    html += '  </div>';
+
+    state.workers.forEach(function (w) {
+      html += '<div class="card">';
+      html += '  <div class="card-row"><span class="card-name">' + esc(w.name) + (w.role === "admin" ? " · admin" : "") + '</span>';
+      html += '    <span style="font-size:12px;color:' + (w.active ? "#4ade80" : "#f87171") + ';">' + (w.active ? "فعّال" : "معطل") + '</span></div>';
+
+      html += '  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">';
+      if (w.id !== state.myUid) {
+        html += '    <button class="clear-btn" data-toggle-active="' + w.id + '" data-next-active="' + (!w.active) + '">' + (w.active ? "عطّل" : "فعّل") + '</button>';
+      }
+      html += '    <button class="clear-btn" data-edit-worker="' + w.id + '">' + (state.editingWorkerId === w.id ? "إلغاء" : "تعديل") + '</button>';
+      if (w.id !== state.myUid) {
+        html += '    <button class="clear-btn" style="color:#f87171;" data-ask-delete-worker="' + w.id + '">حذف</button>';
+      }
+      html += '  </div>';
+
+      if (state.editingWorkerId === w.id) {
+        html += '  <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">';
+        html += '    <input id="workerEditEmailInput" type="email" placeholder="إيميل جديد (اختياري)" value="' + esc(state.workerEditEmail) + '" />';
+        html += '    <input id="workerEditPasswordInput" type="text" placeholder="كلمة سر جديدة (اختياري)" value="' + esc(state.workerEditPassword) + '" />';
+        html += '    <button id="saveWorkerEditBtn" class="confirm-btn" data-uid="' + w.id + '"' + (state.workerEditBusy ? " disabled" : "") + '>' + (state.workerEditBusy ? "كيتسجل..." : "حفظ") + '</button>';
+        if (state.workerEditError) html += '    <p class="auth-error">' + esc(state.workerEditError) + '</p>';
+        html += '  </div>';
+      }
+
+      if (state.confirmDeleteWorkerId === w.id) {
+        html += '  <div style="margin-top:10px;padding:10px;border:1px solid #f87171;border-radius:10px;">';
+        html += '    <p style="margin:0 0 8px;font-size:13px;">متأكد باغي تحيد ' + esc(w.name) + ' نهائيا؟ ما تقدرش ترجعو.</p>';
+        html += '    <div style="display:flex;gap:8px;">';
+        html += '      <button class="clear-btn" style="color:#f87171;" data-confirm-delete-worker="' + w.id + '"' + (state.workerDeleteBusy ? " disabled" : "") + '>' + (state.workerDeleteBusy ? "كيتحيد..." : "أكّد الحذف") + '</button>';
+        html += '      <button class="clear-btn" data-cancel-delete-worker="1">إلغاء</button>';
+        html += '    </div>';
+        html += '  </div>';
+      }
+
+      html += '</div>';
+    });
+    html += '</div>';
+
+    root.innerHTML = html;
+
+    var backBtn = document.getElementById("adminBackBtn");
+    if (backBtn) backBtn.onclick = function () { state.adminOpen = false; state.adminError = ""; render(); };
+
+    var nameEl = document.getElementById("newWorkerNameInput");
+    if (nameEl) nameEl.oninput = function (e) { state.newWorkerName = e.target.value; };
+    var emailEl = document.getElementById("newWorkerEmailInput");
+    if (emailEl) emailEl.oninput = function (e) { state.newWorkerEmail = e.target.value; };
+    var pwEl = document.getElementById("newWorkerPasswordInput");
+    if (pwEl) pwEl.oninput = function (e) { state.newWorkerPassword = e.target.value; };
+
+    var addBtn = document.getElementById("addWorkerBtn");
+    if (addBtn) addBtn.onclick = function () {
+      if (!state.newWorkerName.trim() || !state.newWorkerEmail.trim() || !state.newWorkerPassword.trim()) {
+        state.adminError = "عمر جميع الخانات";
+        render();
+        return;
+      }
+      state.adminBusy = true;
+      state.adminError = "";
+      render();
+      callAdminFn({
+        action: "create",
+        name: state.newWorkerName.trim(),
+        email: state.newWorkerEmail.trim(),
+        password: state.newWorkerPassword.trim()
+      }).then(function () {
+        state.adminBusy = false;
+        state.newWorkerName = "";
+        state.newWorkerEmail = "";
+        state.newWorkerPassword = "";
+        loadWorkers();
+      }).catch(function (e) {
+        state.adminBusy = false;
+        state.adminError = e.message || "وقع مشكل";
+        render();
+      });
+    };
+
+    document.querySelectorAll("[data-toggle-active]").forEach(function (btn) {
+      btn.onclick = function () {
+        var uid = btn.getAttribute("data-toggle-active");
+        var nextActive = btn.getAttribute("data-next-active") === "true";
+        callAdminFn({ action: "setActive", uid: uid, active: nextActive })
+          .then(function () { loadWorkers(); })
+          .catch(function (e) { state.adminError = e.message || "وقع مشكل"; render(); });
+      };
+    });
+
+    document.querySelectorAll("[data-edit-worker]").forEach(function (btn) {
+      btn.onclick = function () {
+        var uid = btn.getAttribute("data-edit-worker");
+        state.editingWorkerId = state.editingWorkerId === uid ? null : uid;
+        state.workerEditEmail = "";
+        state.workerEditPassword = "";
+        state.workerEditError = "";
+        render();
+      };
+    });
+
+    var weEmailEl = document.getElementById("workerEditEmailInput");
+    if (weEmailEl) weEmailEl.oninput = function (e) { state.workerEditEmail = e.target.value; };
+    var wePwEl = document.getElementById("workerEditPasswordInput");
+    if (wePwEl) wePwEl.oninput = function (e) { state.workerEditPassword = e.target.value; };
+
+    var saveEditBtn = document.getElementById("saveWorkerEditBtn");
+    if (saveEditBtn) saveEditBtn.onclick = function () {
+      var uid = saveEditBtn.getAttribute("data-uid");
+      var newEmail = state.workerEditEmail.trim();
+      var newPassword = state.workerEditPassword.trim();
+      if (!newEmail && !newPassword) {
+        state.workerEditError = "عمر شي خانة (إيميل ولا كلمة سر)";
+        render();
+        return;
+      }
+      state.workerEditBusy = true;
+      state.workerEditError = "";
+      render();
+      var chain = Promise.resolve();
+      if (newEmail) chain = chain.then(function () { return callAdminFn({ action: "updateEmail", uid: uid, email: newEmail }); });
+      if (newPassword) chain = chain.then(function () { return callAdminFn({ action: "resetPassword", uid: uid, password: newPassword }); });
+      chain.then(function () {
+        state.workerEditBusy = false;
+        state.editingWorkerId = null;
+        state.workerEditEmail = "";
+        state.workerEditPassword = "";
+        loadWorkers();
+      }).catch(function (e) {
+        state.workerEditBusy = false;
+        state.workerEditError = e.message || "وقع مشكل";
+        render();
+      });
+    };
+
+    document.querySelectorAll("[data-ask-delete-worker]").forEach(function (btn) {
+      btn.onclick = function () {
+        state.confirmDeleteWorkerId = btn.getAttribute("data-ask-delete-worker");
+        state.editingWorkerId = null;
+        render();
+      };
+    });
+    document.querySelectorAll("[data-cancel-delete-worker]").forEach(function (btn) {
+      btn.onclick = function () { state.confirmDeleteWorkerId = null; render(); };
+    });
+    document.querySelectorAll("[data-confirm-delete-worker]").forEach(function (btn) {
+      btn.onclick = function () {
+        var uid = btn.getAttribute("data-confirm-delete-worker");
+        state.workerDeleteBusy = true;
+        render();
+        callAdminFn({ action: "delete", uid: uid })
+          .then(function () {
+            state.workerDeleteBusy = false;
+            state.confirmDeleteWorkerId = null;
+            loadWorkers();
+          })
+          .catch(function (e) {
+            state.workerDeleteBusy = false;
+            state.adminError = e.message || "وقع مشكل";
+            render();
+          });
       };
     });
   }
@@ -1251,6 +1435,9 @@
     var workersToggleBtn = document.getElementById("workersToggleBtn");
     if (workersToggleBtn) workersToggleBtn.onclick = function () { state.workerTabsOpen = !state.workerTabsOpen; render(); };
 
+    var adminOpenBtn = document.getElementById("adminOpenBtn");
+    if (adminOpenBtn) adminOpenBtn.onclick = function () { state.adminOpen = true; render(); };
+
     document.querySelectorAll("[data-view]").forEach(function (btn) {
       btn.onclick = function () {
         var v = btn.getAttribute("data-view");
@@ -1377,7 +1564,7 @@
       btn.onclick = function () {
         var id = btn.getAttribute("data-del-confirm");
         state.confirmDeleteId = null;
-        productsCol(state.myUid).doc(id).delete().catch(function (e) { console.error(e); });
+        db.from("products").delete().eq("id", id).then(function (r) { if (r.error) console.error(r.error); });
         render();
       };
     });
@@ -1480,8 +1667,8 @@
     if (!name) { state.adding = false; render(); return; }
     state.newName = "";
     state.adding = false;
-    productsCol(state.myUid).add({ name: name, biro: "", makhzan: "", createdAt: serverTimestamp() })
-      .catch(function (e) { console.error(e); });
+    db.from("products").insert({ owner_id: state.myUid, name: name, biro: "", makhzan: "" })
+      .then(function (r) { if (r.error) console.error(r.error); });
     render();
   }
 
@@ -1521,16 +1708,13 @@
     var expr = state.calcExpr;
     state.calcExpr = String(result);
     render();
-    historyCol(state.myUid).add({ expr: expr, result: result, createdAt: serverTimestamp() })
-      .catch(function (e) { console.error(e); });
+    db.from("history").insert({ owner_id: state.myUid, expr: expr, result: result })
+      .then(function (r) { if (r.error) console.error(r.error); });
   }
 
   function clearHistory() {
-    historyCol(state.myUid).get().then(function (snap) {
-      var batch = db.batch();
-      snap.docs.forEach(function (d) { batch.delete(d.ref); });
-      return batch.commit();
-    }).catch(function (e) { console.error(e); });
+    db.from("history").delete().eq("owner_id", state.myUid)
+      .then(function (r) { if (r.error) console.error(r.error); });
   }
 
   // ---------- switching whose data is viewed ----------
@@ -1552,66 +1736,110 @@
     render();
   }
 
+  function loadProducts(uid) {
+    return db.from("products").select("*").eq("owner_id", uid).order("created_at", { ascending: false })
+      .then(function (res) {
+        if (res.error) { console.error(res.error); return; }
+        state.products = res.data;
+        render();
+      });
+  }
+  function loadHistory(uid) {
+    return db.from("history").select("*").eq("owner_id", uid).order("created_at", { ascending: false }).limit(60)
+      .then(function (res) {
+        if (res.error) { console.error(res.error); return; }
+        state.history = res.data;
+        render();
+      });
+  }
+
   function subscribeViewedData(uid) {
-    if (unsubProducts) unsubProducts();
-    if (unsubHistory) unsubHistory();
-    unsubProducts = productsCol(uid).orderBy("createdAt", "desc").onSnapshot(function (snap) {
-      state.products = snap.docs.map(function (d) { var data = d.data(); data.id = d.id; return data; });
-      render();
-    }, function (err) { console.error(err); });
-    unsubHistory = historyCol(uid).orderBy("createdAt", "desc").limit(60).onSnapshot(function (snap) {
-      state.history = snap.docs.map(function (d) { var data = d.data(); data.id = d.id; return data; });
-      render();
-    }, function (err) { console.error(err); });
+    if (unsubProducts) { unsubProducts.unsubscribe(); unsubProducts = null; }
+    if (unsubHistory) { unsubHistory.unsubscribe(); unsubHistory = null; }
+    loadProducts(uid);
+    loadHistory(uid);
+    unsubProducts = db.channel("products_" + uid)
+      .on("postgres_changes", { event: "*", schema: "public", table: "products", filter: "owner_id=eq." + uid }, function () { loadProducts(uid); })
+      .subscribe();
+    unsubHistory = db.channel("history_" + uid)
+      .on("postgres_changes", { event: "*", schema: "public", table: "history", filter: "owner_id=eq." + uid }, function () { loadHistory(uid); })
+      .subscribe();
+  }
+
+  // ---------- لائحة الخدامين (profiles) - بديل directory/WORKERS القدام ----------
+  function loadWorkers() {
+    return db.from("profiles").select("id, name, role, active").order("created_at", { ascending: true })
+      .then(function (res) {
+        if (res.error) { console.error(res.error); return; }
+        state.workers = res.data;
+        var dir = {};
+        res.data.forEach(function (w) { if (w.active) dir[w.name] = w.id; });
+        state.directory = dir;
+        render();
+      });
+  }
+
+  function subscribeWorkers() {
+    if (unsubDirectory) { unsubDirectory.unsubscribe(); unsubDirectory = null; }
+    loadWorkers();
+    unsubDirectory = db.channel("profiles_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, function () { loadWorkers(); })
+      .subscribe();
   }
 
   // ---------- auth lifecycle ----------
-  auth.onAuthStateChanged(function (user) {
-    if (unsubProducts) { unsubProducts(); unsubProducts = null; }
-    if (unsubHistory) { unsubHistory(); unsubHistory = null; }
-    if (unsubDirectory) { unsubDirectory(); unsubDirectory = null; }
-    if (unsubNotes) { unsubNotes(); unsubNotes = null; }
+  function teardownRealtime() {
+    if (unsubProducts) { unsubProducts.unsubscribe(); unsubProducts = null; }
+    if (unsubHistory) { unsubHistory.unsubscribe(); unsubHistory = null; }
+    if (unsubDirectory) { unsubDirectory.unsubscribe(); unsubDirectory = null; }
+    if (unsubNotes) { unsubNotes.unsubscribe(); unsubNotes = null; }
+  }
 
-    if (!user) {
+  function onSignedIn(user) {
+    db.from("profiles").select("name, role, active").eq("id", user.id).single().then(function (res) {
+      if (res.error || !res.data) {
+        console.error(res.error);
+        state.authState = "out";
+        state.authError = "ماكاينش profile مربوط بهاد الحساب، تواصل مع admin";
+        render();
+        return;
+      }
+      if (!res.data.active) {
+        db.auth.signOut();
+        state.authState = "out";
+        state.authError = "هاد الحساب معطل";
+        render();
+        return;
+      }
+      state.myName = res.data.name;
+      state.myRole = res.data.role;
+      state.myUid = user.id;
+      state.authState = "in";
+      state.authBusy = false;
+      state.viewingName = state.myName;
+      state.viewingUid = user.id;
+      state.isReadOnly = false;
+
+      subscribeWorkers();
+      subscribeViewedData(user.id);
+      subscribeNotes();
+      render();
+    });
+  }
+
+  db.auth.onAuthStateChange(function (event, session) {
+    teardownRealtime();
+    if (!session || !session.user) {
       state.authState = "out";
       state.authBusy = false;
       state.myName = null;
       state.myUid = null;
+      state.myRole = "worker";
       render();
       return;
     }
-
-    var worker = null;
-    for (var i = 0; i < WORKERS.length; i++) {
-      if (WORKERS[i].email.toLowerCase() === (user.email || "").toLowerCase()) { worker = WORKERS[i]; break; }
-    }
-
-    state.myName = worker ? worker.name : (user.email || "مستخدم");
-    state.myUid = user.uid;
-    state.authState = "in";
-    state.authBusy = false;
-    state.viewingName = state.myName;
-    state.viewingUid = user.uid;
-    state.isReadOnly = false;
-
-    // register this worker's uid in the shared directory so others can view their data
-    directoryDoc().set(makeDirectoryPatch(state.myName, user.uid), { merge: true }).catch(function (e) { console.error(e); });
-
-    unsubDirectory = directoryDoc().onSnapshot(function (doc) {
-      state.directory = doc.exists ? doc.data() : {};
-      render();
-    }, function (err) { console.error(err); });
-
-    subscribeViewedData(user.uid);
-    subscribeNotes();
-    render();
+    onSignedIn(session.user);
   });
-
-  function makeDirectoryPatch(name, uid) {
-    var patch = {};
-    patch[name] = uid;
-    return patch;
-  }
 
   // ---------- init ----------
   document.addEventListener("pointerdown", function (e) {

@@ -156,8 +156,12 @@
   .field-label { font-size: 12px; font-weight: 600; color: var(--textDim); margin-bottom: 4px; padding: 0 4px; }
 
   /* compact single-row card */
-  .card.card-row { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
-  .card-name { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+  .card.card-row { display: flex; align-items: center; gap: 8px; padding: 10px 12px; -webkit-touch-callout: none; }
+  .card.card-row.dragging {
+    z-index: 40; position: relative; box-shadow: 0 10px 26px rgba(0,0,0,0.55);
+    background: var(--panelAlt); opacity: 0.98; cursor: grabbing;
+  }
+  .card-name { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px; -webkit-user-select: none; user-select: none; }
   .card-name h3 { font-size: 14px; font-weight: 700; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .card-sum-mini { font-size: 11px; font-weight: 700; color: var(--amber); direction: ltr; text-align: right; white-space: nowrap; }
   .mini-field { flex-shrink: 0; width: 58px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
@@ -193,84 +197,91 @@
   }
   .history-item .res { font-size: 14px; font-weight: 700; color: var(--amber); direction: ltr; flex-shrink: 0; }
 
-  /* calculator */
+  /* calculator — Samsung Calculator style, in the app's own palette */
   .calc-page { padding: 0 16px 16px; display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-  .calc-wrap { background: var(--bg); flex-shrink: 0; padding: 16px 16px 8px; }
-  .calc-box { border-radius: 20px; padding: 22px 20px; background: #0F1113; border: 1px solid var(--border); box-shadow: inset 0 2px 6px rgba(0,0,0,0.5); }
-  .calc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .calc-wrap { background: var(--bg); flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .calc-box { border-radius: 22px; padding: 14px 14px 10px; background: #0F1113; border: 1px solid var(--border); box-shadow: inset 0 2px 6px rgba(0,0,0,0.5); }
+  .calc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
   .calc-top span { font-size: 13px; font-weight: 700; color: var(--textDim); }
-  .calc-top-actions { display: flex; align-items: center; gap: 6px; }
+  .calc-tools-row { display: flex; align-items: center; justify-content: space-between; padding: 0 2px; margin: 0 0 2px; }
   .hist-toggle { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; padding: 7px 12px; border-radius: 10px; background: none; border: none; color: var(--textDim); }
   .hist-toggle.active { color: var(--amber); background: rgba(215,255,75,0.12); }
-  .lamp-toggle { color: var(--amber); }
-  .calc-display { text-align: right; font-size: 46px; font-weight: 800; margin-bottom: 18px; color: var(--amber); direction: ltr; min-height: 56px; max-height: 112px; overflow: hidden; white-space: nowrap; line-height: 1.15; }
-  .calc-row { display: flex; align-items: center; gap: 10px; }
-  .calc-row input {
-    flex: 1; border-radius: 12px; padding: 16px 16px; font-size: 21px; direction: ltr;
-    background: var(--panelAlt); border: 1px solid var(--border); color: var(--text); outline: none;
+  .calc-back-mini {
+    width: 34px; height: 34px; border-radius: 999px; background: none; border: none;
+    color: var(--textDim); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
+  .calc-back-mini:active { background: var(--panelAlt); color: var(--text); }
+
+  /* expression trail (small, like Samsung's history line above the result) — wraps + auto-shrinks instead of clipping */
+  .calc-row { padding: 0 2px; min-height: 22px; max-height: 60px; overflow: hidden; }
+  .calc-row textarea.calc-expr {
+    display: block; width: 100%; height: 60px; border: none; background: none; outline: none;
+    resize: none; overflow: hidden; padding: 0; margin: 0;
+    font-size: 22px; font-weight: 600; text-align: right; direction: ltr;
+    color: var(--textDim); letter-spacing: 0.2px; line-height: 1.25;
+    white-space: pre-wrap; word-break: break-all;
+  }
+  /* result readout — two states, like Samsung: a small dim preview that sits right under
+     the expression while typing, and a big colored number once "=" is pressed. */
+  .calc-display {
+    text-align: right; direction: ltr; overflow: hidden; white-space: pre-wrap; word-break: break-all;
+  }
+  .calc-display.preview { font-weight: 700; color: var(--textDim); margin: 2px 2px 4px; height: 32px; line-height: 1.2; }
+  .calc-display.final { font-weight: 800; color: var(--amber); margin: 14px 2px 6px; height: 88px; line-height: 1.15; }
+  .calc-box-merged { padding-bottom: 12px; }
+  .calc-pad-divider { height: 1px; background: var(--border); opacity: 0.6; margin: 2px 0 10px; }
+
   .sq-btn { width: 54px; height: 54px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: none; }
   .sq-btn.clear { background: var(--panelAlt); color: var(--textDim); border: 1px solid var(--border); }
   .sq-btn.equals { background: var(--amber); color: #141B05; font-weight: 700; font-size: 22px; }
 
-  /* helper (money counting) page */
+  /* shared circular back button (notes / history / admin pages) */
   .helper-back-btn {
     width: 44px; height: 44px; border-radius: 999px;
     background: var(--panelAlt); color: var(--text); border: 1px solid var(--border);
     display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
-  .helper-row {
-    display: flex; align-items: center; gap: 8px;
-    padding: 10px 4px; border-bottom: 1px solid var(--borderSoft);
-  }
-  .helper-row:last-child { border-bottom: none; }
-  .helper-denom {
-    width: 54px; flex-shrink: 0; text-align: center; font-size: 15px; font-weight: 700;
-    background: var(--panelAlt); border: 1px solid var(--border); border-radius: 10px; padding: 8px 4px;
-    color: var(--text); direction: ltr;
-  }
-  .helper-mul, .helper-eq { color: var(--textDim); font-size: 13px; flex-shrink: 0; }
-  .helper-input {
-    flex: 1; min-width: 0; text-align: center; border-radius: 10px; padding: 8px 6px; font-size: 16px; font-weight: 700;
-    background: var(--panelAlt); border: 1px solid var(--border); color: var(--amber); outline: none; direction: ltr;
-  }
-  .helper-input:focus { border-color: var(--amber); }
-  .helper-result {
-    width: 92px; flex-shrink: 0; text-align: left; font-size: 15px; font-weight: 700; color: var(--teal);
-    direction: ltr; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .helper-total-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding: 0 2px; }
-  .helper-total-row span:first-child { font-size: 13px; font-weight: 700; color: var(--textDim); }
-  .helper-total-value { font-size: 22px; font-weight: 800; color: var(--amber); direction: ltr; }
-  .helper-actions { display: flex; gap: 10px; }
-  .helper-cancel, .helper-add {
-    flex: 1; padding: 12px; border-radius: 12px; font-weight: 700; font-size: 15px;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-  }
-  .helper-cancel { background: var(--panelAlt); color: var(--red); border: 1px solid var(--border); }
-  .helper-add { background: var(--teal); color: #04211C; border: none; font-weight: 800; }
 
-  /* custom keypad */
+  /* custom keypad — circular Samsung Calculator buttons */
   .keypad-wrap {
     flex-shrink: 0; z-index: 50;
-    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    padding: 8px 16px calc(12px + env(safe-area-inset-bottom, 0px));
     background: var(--bg); border-top: 1px solid var(--border);
     box-shadow: 0 -6px 20px rgba(0,0,0,0.45);
   }
-  .keypad-box { border-radius: 14px; padding: 10px; background: #0F1113; border: 1px solid var(--border); }
-  .keypad-top { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 10px; }
+  .keypad-box { border-radius: 18px; padding: 8px 8px; background: #0F1113; border: 1px solid var(--border); }
+  .keypad-top { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 6px; }
   .keypad-top span { font-size: 11px; font-weight: 600; color: var(--textDim); }
+  .keypad-top-actions { display: flex; align-items: center; gap: 6px; }
+  .keypad-back { width: 32px; height: 32px; border-radius: 999px; background: none; border: none; color: var(--textDim); display: flex; align-items: center; justify-content: center; }
+  .keypad-back:active { background: var(--panelAlt); }
   .keypad-done { display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 8px; background: var(--teal); color: #04211C; border: none; }
-  .keypad-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .keypad-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; direction: ltr; }
   .kp-btn {
-    height: 48px; border-radius: 10px; border: 1px solid var(--border); background: var(--panelAlt);
-    color: var(--text); font-size: 19px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    width: 100%; max-width: 58px; aspect-ratio: 1 / 1; border-radius: 999px; border: none; background: none;
+    color: var(--text); font-size: 18px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    margin: 0 auto;
   }
-  .kp-btn:active { background: var(--border); }
-  .kp-btn.kp-op { color: var(--amber); }
-  .kp-btn.kp-clear { color: var(--red); }
-  .kp-btn.kp-back { color: var(--textDim); }
-  .kp-btn.kp-equals { background: var(--amber); color: #141B05; }
+  /* digits: soft filled circle */
+  .kp-btn.kp-digit { background: var(--panelAlt); color: var(--text); }
+  .kp-btn.kp-digit:active { background: var(--border); }
+  /* functions ( ) % : plain, dim */
+  .kp-btn.kp-fn { background: var(--panelAlt); color: var(--textDim); font-size: 15px; font-weight: 700; }
+  .kp-btn.kp-fn:active { background: var(--border); }
+  /* AC : filled circle, red like Samsung's clear */
+  .kp-btn.kp-clear { background: var(--panelAlt); color: var(--red); font-size: 14px; font-weight: 800; }
+  .kp-btn.kp-clear:active { background: var(--border); }
+  /* +/- toggle sign */
+  .kp-btn.kp-sign { background: var(--panelAlt); color: var(--textDim); font-size: 15px; font-weight: 700; }
+  .kp-btn.kp-sign:active { background: var(--border); }
+  /* operators: filled amber circle, like Samsung's orange */
+  .kp-btn.kp-op { background: rgba(215,255,75,0.14); color: var(--amber); font-size: 19px; }
+  .kp-btn.kp-op:active { background: rgba(215,255,75,0.24); }
+  /* equals: same circular shape/size as every other key, just accent-colored (Samsung style) */
+  .kp-btn.kp-equals {
+    background: var(--amber); color: #141B05; font-size: 20px; font-weight: 800;
+  }
+  .kp-btn.kp-equals:active { filter: brightness(0.92); }
 
   /* auth screen */
   .auth-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 24px; }
@@ -401,13 +412,12 @@
     newName: "",
     calcExpr: "",
     calcDisplay: "0",
+    calcJustEqualed: false,
     historyOpen: false,
     historyPageOpen: false,
     confirmDeleteId: null,
     keypadTarget: null,
     kpBuffer: "",
-    helperOpen: false,
-    helperValues: {},
 
     notesOpen: false,
     notes: [],
@@ -417,8 +427,6 @@
     notePhotoUrl: null,
     notePhotoUploading: false,
   };
-
-  var HELPER_DENOMS = [5, 10, 20, 50, 100, 200, 500, 1000, 2000];
 
   var unsubProducts = null;
   var unsubHistory = null;
@@ -463,6 +471,7 @@
     s = arabicToWesternDigits(s);
     s = s.replace(/×/g, "*").replace(/[xX]/g, "*").replace(/÷/g, "/").replace(/,/g, ".");
     s = s.replace(/=$/, "");
+    s = s.replace(/(\d+(\.\d+)?)%/g, "($1/100)");
     if (!/^[0-9+\-*/().\s]+$/.test(s)) return null;
     if (!/[0-9]/.test(s)) return null;
     try {
@@ -474,11 +483,47 @@
     }
   }
   function formatNumber(n) {
+    return formatNumberPlain(n, true);
+  }
+  function formatNumberPlain(n, withCurrency) {
     if (n === null || n === undefined || n === "") return "";
     var num = typeof n === "number" ? n : parseFloat(n);
     if (isNaN(num)) return String(n);
-    if (Number.isInteger(num)) return num.toLocaleString("en-US");
-    return num.toLocaleString("en-US", { maximumFractionDigits: 2 });
+    var out = Number.isInteger(num)
+      ? num.toLocaleString("en-US")
+      : num.toLocaleString("en-US", { maximumFractionDigits: 2 });
+    return withCurrency ? out + " DH" : out;
+  }
+  // prevents "5+++5" — if the last character already typed is an operator, tapping
+  // another operator replaces it instead of stacking a new one after it.
+  var CALC_OPERATORS = ["+", "-", "×", "÷"];
+  function appendCalcChar(current, value) {
+    var s = String(current || "");
+    if (CALC_OPERATORS.indexOf(value) !== -1 && s.length) {
+      var last = s.charAt(s.length - 1);
+      if (CALC_OPERATORS.indexOf(last) !== -1) return s.slice(0, -1) + value;
+    }
+    return s + value;
+  }
+  function toggleSign(expr) {
+    var s = String(expr || "");
+    var m = s.match(/(-?\d+\.?\d*)$/);
+    if (!m || !m[1]) return s;
+    var num = m[1];
+    var start = s.length - num.length;
+    var toggled = num.charAt(0) === "-" ? num.slice(1) : "-" + num;
+    return s.slice(0, start) + toggled;
+  }
+  // smart "()" key — like Samsung Calculator: figures out whether the next tap should
+  // open a new group or close the current one, based on what's already been typed.
+  function smartParenChar(expr) {
+    var s = String(expr || "");
+    var opens = (s.match(/\(/g) || []).length;
+    var closes = (s.match(/\)/g) || []).length;
+    var last = s.length ? s.charAt(s.length - 1) : "";
+    var justFinishedAValue = /[0-9)%]/.test(last);
+    if (opens > closes && justFinishedAValue) return ")";
+    return "(";
   }
   function esc(str) {
     var d = document.createElement("div");
@@ -513,63 +558,6 @@
     db.from("products").update(patch).eq("id", target.id).then(function (r) { if (r.error) console.error(r.error); });
   }
 
-  function helperFieldValue(denom) {
-    var key = String(denom);
-    if (state.keypadTarget && state.keypadTarget.type === "helper" && state.keypadTarget.field === key) {
-      return state.kpBuffer;
-    }
-    return state.helperValues[key] || "";
-  }
-  function commitHelperField(target, buffer) {
-    var raw = buffer;
-    var result = evaluateExpr(raw);
-    var newVal;
-    if (result !== null) newVal = String(result);
-    else if (raw.trim() === "") newVal = "";
-    else newVal = raw;
-    state.helperValues[target.field] = newVal;
-  }
-  function computeHelperTotal() {
-    var total = 0;
-    HELPER_DENOMS.forEach(function (d) {
-      var count = evaluateExpr(helperFieldValue(d));
-      if (count === null) count = 0;
-      total += count * d;
-    });
-    return total;
-  }
-  function openHelper() {
-    if (state.isReadOnly) return;
-    if (state.keypadTarget && state.keypadTarget.type === "product") {
-      commitProductField(state.keypadTarget, state.kpBuffer);
-    }
-    state.keypadTarget = null;
-    state.kpBuffer = "";
-    state.historyOpen = false;
-    state.helperValues = {};
-    state.helperOpen = true;
-    render();
-  }
-  function cancelHelper() {
-    state.keypadTarget = null;
-    state.kpBuffer = "";
-    state.helperOpen = false;
-    state.helperValues = {};
-    render();
-  }
-  function confirmHelperAdd() {
-    if (state.keypadTarget && state.keypadTarget.type === "helper") {
-      commitHelperField(state.keypadTarget, state.kpBuffer);
-    }
-    var total = computeHelperTotal();
-    state.keypadTarget = null;
-    state.kpBuffer = "";
-    state.helperOpen = false;
-    state.helperValues = {};
-    state.calcExpr = String(total);
-    render();
-  }
-
   // ---------- inline svg icons ----------
   var ICONS = {
     plus: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
@@ -586,7 +574,8 @@
     users: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
     calc: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8" y2="11.01"/><line x1="12" y1="11" x2="12" y2="11.01"/><line x1="16" y1="11" x2="16" y2="11.01"/><line x1="8" y1="15" x2="8" y2="15.01"/><line x1="12" y1="15" x2="12" y2="15.01"/><line x1="16" y1="15" x2="16" y2="15.01"/><line x1="8" y1="19" x2="8" y2="19.01"/><line x1="12" y1="19" x2="12" y2="19.01"/><line x1="16" y1="19" x2="16" y2="19.01"/></svg>',
     box: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg>',
-    camera: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg>'
+    camera: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg>',
+    delete: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>'
   };
   function icon(name, size, weight) {
     return ICONS[name].replace(/{s}/g, size || 20).replace(/{w}/g, weight || 2);
@@ -596,6 +585,10 @@
   var root = document.getElementById("app");
   var keypadWasOpen = false;
   var lastScrolledTargetKey = null;
+
+  // ---------- drag to reorder products (press & hold a card, then move it) ----------
+  var dragCtx = null;
+  var reorderSuppressed = false;
 
   function scrollFieldAboveKeypad(el) {
     if (!el) return;
@@ -628,16 +621,6 @@
 
     if (state.activeView === "calc" && !state.isReadOnly && !state.keypadTarget) {
       state.keypadTarget = { type: "calc" };
-    }
-
-    if (state.helperOpen) {
-      html += renderHelperPage();
-      if (state.keypadTarget) html += renderKeypad(!keypadWasOpen);
-      keypadWasOpen = !!state.keypadTarget;
-      root.innerHTML = html;
-      attachEvents();
-      afterRenderKeypadFocus();
-      return;
     }
 
     html += '<div class="header" id="pageHeader">';
@@ -685,6 +668,7 @@
       html += '<div class="ro-banner">' + icon("lock", 14) + ' وضع العرض فقط &mdash; بيانات ديال ' + esc(state.viewingName) + '</div>';
     }
 
+    var calcPadInline = false;
     if (state.activeView === "products") {
       // product list
       html += '<div class="list">';
@@ -700,23 +684,25 @@
       html += '</div>';
     } else {
       if (!state.isReadOnly) {
-        // calculator - fixed in place, outside the scrollable area
+        // calculator — display + keypad merged into a single seamless card (Samsung style)
         html += '<div class="calc-wrap">';
-        html += '  <div class="calc-box">';
+        html += '  <div class="calc-box calc-box-merged">';
         html += '    <div class="calc-top">';
-        html += '      <span>خانة تحسب</span>';
-        html += '      <div class="calc-top-actions">';
-        html += '        <button id="helperOpenBtn" class="hist-toggle lamp-toggle" aria-label="مساعد الفلوس">' + icon("lamp", 14) + ' مساعد</button>';
-        html += '        <button id="histToggleBtn" class="hist-toggle">' + icon("history", 13) + ' السجل</button>';
-        html += '      </div>';
+        html += '      <span>الحاسبة</span>';
         html += '    </div>';
-        html += '    <div class="calc-display mono">' + esc(liveCalcDisplay()) + '</div>';
         html += '    <div class="calc-row">';
-        html += '      <input id="calcInput" type="text" inputmode="none" autocomplete="off" class="mono" placeholder="5×5 + 3..." value="' + esc(state.calcExpr) + '" />';
+        html += '      <textarea id="calcInput" rows="1" inputmode="none" autocomplete="off" spellcheck="false" class="mono calc-expr" placeholder="5×5 + 3...">' + esc(state.calcExpr) + '</textarea>';
         html += '    </div>';
+        html += '    <div class="calc-display mono ' + (state.calcJustEqualed ? "final" : "preview") + '">' + esc(liveCalcDisplay()) + '</div>';
+        html += '    <div class="calc-tools-row">';
+        html += '      <button id="calcBackBtn" class="calc-back-mini" aria-label="مسح خانة">' + icon("delete", 16, 2) + '</button>';
+        html += '      <button id="histToggleBtn" class="hist-toggle">' + icon("history", 13) + ' السجل</button>';
+        html += '    </div>';
+        html += '    <div class="calc-pad-divider"></div>';
+        html += renderCalcPadGrid();
         html += '  </div>';
         html += '</div>';
-        html += '<div class="calc-page"></div>';
+        calcPadInline = true;
       } else {
         // read-only: whole page is the history
         html += '<div class="calc-page">';
@@ -739,10 +725,22 @@
       }
     }
 
-    if (state.keypadTarget) html += renderKeypad(!keypadWasOpen);
+    if (state.keypadTarget && !calcPadInline) html += renderKeypad(!keypadWasOpen);
     keypadWasOpen = !!state.keypadTarget;
 
+    // preserve scroll position of the scrollable list/calc area across re-renders —
+    // otherwise every keystroke rebuilds the DOM from scratch and the list snaps
+    // back to the top, hiding whatever field the user is typing into.
+    var prevScrollEl = root.querySelector(".list, .calc-page, .calc-wrap");
+    var prevScrollTop = prevScrollEl ? prevScrollEl.scrollTop : null;
+
     root.innerHTML = html;
+
+    if (prevScrollTop !== null) {
+      var newScrollEl = root.querySelector(".list, .calc-page, .calc-wrap");
+      if (newScrollEl) newScrollEl.scrollTop = prevScrollTop;
+    }
+
     attachEvents();
     afterRenderKeypadFocus();
   }
@@ -774,16 +772,6 @@
           sel.setSelectionRange(vlen2, vlen2);
         } catch (e) {}
         if (shouldScroll) scrollFieldAboveKeypad(sel.closest(".card") || sel);
-      }
-    } else if (state.keypadTarget.type === "helper") {
-      var selH = document.querySelector('.helper-input[data-denom="' + state.keypadTarget.field + '"]');
-      if (selH) {
-        try {
-          selH.focus({ preventScroll: true });
-          var vlenH = selH.value.length;
-          selH.setSelectionRange(vlenH, vlenH);
-        } catch (e) {}
-        if (shouldScroll) scrollFieldAboveKeypad(selH.closest(".helper-row") || selH);
       }
     }
   }
@@ -1121,7 +1109,7 @@
       btn.onclick = function () {
         var hid = btn.getAttribute("data-hist-id");
         var item = state.history.find(function (h) { return h.id === hid; });
-        if (item) state.calcExpr = String(item.result);
+        if (item) { state.calcExpr = String(item.result); state.calcJustEqualed = true; }
         state.historyPageOpen = false;
         render();
       };
@@ -1311,43 +1299,54 @@
     });
   }
 
-  function renderKeypad(animateIn) {
-    var keys = [
-      { label: "⌫", cls: "kp-back", action: "back" },
-      { label: "(", cls: "", action: "char", value: "(" },
-      { label: ")", cls: "", action: "char", value: ")" },
-      { label: "C", cls: "kp-clear", action: "clear" },
+  // Samsung Calculator key order: ( ) % AC / 7 8 9 ÷ / 4 5 6 × / 1 2 3 − / +- 0 . + / (wide =)
+  function getCalcPadKeys() {
+    return [
+      { label: "AC", cls: "kp-clear", action: "clear" },
+      { label: "()", cls: "kp-fn", action: "paren" },
+      { label: "%", cls: "kp-fn", action: "char", value: "%" },
       { label: "÷", cls: "kp-op", action: "char", value: "÷" },
-      { label: "3", cls: "", action: "char", value: "3" },
-      { label: "2", cls: "", action: "char", value: "2" },
-      { label: "1", cls: "", action: "char", value: "1" },
+
+      { label: "7", cls: "kp-digit", action: "char", value: "7" },
+      { label: "8", cls: "kp-digit", action: "char", value: "8" },
+      { label: "9", cls: "kp-digit", action: "char", value: "9" },
       { label: "×", cls: "kp-op", action: "char", value: "×" },
-      { label: "6", cls: "", action: "char", value: "6" },
-      { label: "5", cls: "", action: "char", value: "5" },
-      { label: "4", cls: "", action: "char", value: "4" },
+
+      { label: "4", cls: "kp-digit", action: "char", value: "4" },
+      { label: "5", cls: "kp-digit", action: "char", value: "5" },
+      { label: "6", cls: "kp-digit", action: "char", value: "6" },
       { label: "−", cls: "kp-op", action: "char", value: "-" },
-      { label: "9", cls: "", action: "char", value: "9" },
-      { label: "8", cls: "", action: "char", value: "8" },
-      { label: "7", cls: "", action: "char", value: "7" },
+
+      { label: "1", cls: "kp-digit", action: "char", value: "1" },
+      { label: "2", cls: "kp-digit", action: "char", value: "2" },
+      { label: "3", cls: "kp-digit", action: "char", value: "3" },
       { label: "+", cls: "kp-op", action: "char", value: "+" },
+
+      { label: "+/−", cls: "kp-sign", action: "negate" },
+      { label: "0", cls: "kp-digit", action: "char", value: "0" },
+      { label: ".", cls: "kp-digit", action: "char", value: "." },
       { label: "=", cls: "kp-equals", action: "equals" },
-      { label: "0", cls: "", action: "char", value: "0" },
-      { label: ".", cls: "", action: "char", value: "." },
     ];
-    var pinned = state.activeView === "calc" && state.keypadTarget && state.keypadTarget.type === "calc";
+  }
+  function renderCalcPadGrid() {
+    var h = '<div class="keypad-grid">';
+    getCalcPadKeys().forEach(function (k) {
+      h += '<button type="button" class="kp-btn ' + k.cls + '" data-kp-action="' + k.action + '" data-kp-value="' + (k.value ? esc(k.value) : "") + '">' + k.label + '</button>';
+    });
+    h += '</div>';
+    return h;
+  }
+  function renderKeypad(animateIn) {
     var h = '<div class="keypad-wrap' + (animateIn ? " slide-up" : "") + '">';
     h += '  <div class="keypad-box">';
     h += '    <div class="keypad-top">';
     h += '      <span>لوحة الأرقام</span>';
-    if (!pinned) {
-      h += '      <button id="keypadDoneBtn" class="keypad-done">' + icon("check", 13) + ' تم</button>';
-    }
+    h += '      <div class="keypad-top-actions">';
+    h += '        <button id="keypadBackBtn" class="keypad-back" aria-label="مسح خانة">' + icon("delete", 17, 2) + '</button>';
+    h += '        <button id="keypadDoneBtn" class="keypad-done">' + icon("check", 13) + ' تم</button>';
+    h += '      </div>';
     h += '    </div>';
-    h += '    <div class="keypad-grid">';
-    keys.forEach(function (k) {
-      h += '<button type="button" class="kp-btn ' + k.cls + '" data-kp-action="' + k.action + '" data-kp-value="' + (k.value ? esc(k.value) : "") + '">' + k.label + '</button>';
-    });
-    h += '    </div>';
+    h += renderCalcPadGrid();
     h += '  </div>';
     h += '</div>';
     return h;
@@ -1358,7 +1357,7 @@
     var makhzanVal = evaluateExpr(fieldValue(p, "makhzan"));
     var sum = (biroVal !== null ? biroVal : 0) + (makhzanVal !== null ? makhzanVal : 0);
     var hasAny = biroVal !== null || makhzanVal !== null;
-    var h = '<div class="card card-row">';
+    var h = '<div class="card card-row" data-product-id="' + p.id + '">';
     h += '  <span class="rivet r"></span><span class="rivet l"></span>';
     h += '  <div class="card-name">';
     h += '    <h3>' + esc(p.name) + '</h3>';
@@ -1379,48 +1378,6 @@
       }
     }
     h += '</div>';
-    return h;
-  }
-
-  function renderHelperPage() {
-    var h = "";
-    h += '<div class="header">';
-    h += '  <div class="header-row">';
-    h += '    <div><h1>مساعد الفلوس</h1><p class="sub">حساب حسب الفئات</p></div>';
-    h += '    <button id="helperCancelBtnTop" class="helper-back-btn" aria-label="رجوع">' + icon("x", 20, 2.5) + '</button>';
-    h += '  </div>';
-    h += '</div>';
-
-    h += '<div class="list">';
-    HELPER_DENOMS.forEach(function (d) {
-      var val = helperFieldValue(d);
-      var count = evaluateExpr(val);
-      if (count === null) count = 0;
-      var result = count * d;
-      h += '<div class="helper-row">';
-      h += '  <div class="helper-denom mono">' + d + '</div>';
-      h += '  <span class="helper-mul">×</span>';
-      h += '  <input class="helper-input mono" inputmode="none" autocomplete="off" data-denom="' + d + '" value="' + esc(val) + '" placeholder="0" />';
-      h += '  <span class="helper-eq">=</span>';
-      h += '  <div class="helper-result mono">' + esc(formatNumber(result)) + '</div>';
-      h += '</div>';
-    });
-    h += '</div>';
-
-    var total = computeHelperTotal();
-    h += '<div class="calc-wrap">';
-    h += '  <div class="calc-box">';
-    h += '    <div class="helper-total-row">';
-    h += '      <span>المجموع</span>';
-    h += '      <span class="helper-total-value mono">' + esc(formatNumber(total)) + '</span>';
-    h += '    </div>';
-    h += '    <div class="helper-actions">';
-    h += '      <button id="helperCancelBtn" class="helper-cancel">' + icon("x", 15) + ' إلغاء</button>';
-    h += '      <button id="helperAddBtn" class="helper-add">' + icon("check", 15) + ' إضافة</button>';
-    h += '    </div>';
-    h += '  </div>';
-    h += '</div>';
-
     return h;
   }
 
@@ -1475,46 +1432,6 @@
     }
     var confirmAddBtn = document.getElementById("confirmAddBtn");
     if (confirmAddBtn) confirmAddBtn.onclick = addProduct;
-
-    var helperOpenBtn = document.getElementById("helperOpenBtn");
-    if (helperOpenBtn) helperOpenBtn.onclick = openHelper;
-
-    var helperCancelBtnTop = document.getElementById("helperCancelBtnTop");
-    if (helperCancelBtnTop) helperCancelBtnTop.onclick = cancelHelper;
-    var helperCancelBtn = document.getElementById("helperCancelBtn");
-    if (helperCancelBtn) helperCancelBtn.onclick = cancelHelper;
-    var helperAddBtn = document.getElementById("helperAddBtn");
-    if (helperAddBtn) helperAddBtn.onclick = confirmHelperAdd;
-
-    document.querySelectorAll(".helper-input").forEach(function (input) {
-      input.addEventListener("focus", function (e) {
-        var d = e.target.getAttribute("data-denom");
-        if (state.keypadTarget && state.keypadTarget.type === "helper" && state.keypadTarget.field === d) return;
-        if (state.keypadTarget && state.keypadTarget.type === "helper") {
-          commitHelperField(state.keypadTarget, state.kpBuffer);
-        }
-        state.keypadTarget = { type: "helper", field: d };
-        state.kpBuffer = state.helperValues[d] || "";
-        render();
-      });
-      input.addEventListener("input", function (e) {
-        var d = e.target.getAttribute("data-denom");
-        if (state.keypadTarget && state.keypadTarget.type === "helper" && state.keypadTarget.field === d) {
-          state.kpBuffer = e.target.value;
-        }
-      });
-      input.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") {
-          if (state.keypadTarget && state.keypadTarget.type === "helper") {
-            commitHelperField(state.keypadTarget, state.kpBuffer);
-          }
-          state.keypadTarget = null;
-          state.kpBuffer = "";
-          e.target.blur();
-          render();
-        }
-      });
-    });
 
     document.querySelectorAll(".value-field").forEach(function (input) {
       if (state.isReadOnly) return;
@@ -1577,7 +1494,7 @@
       btn.onclick = function () {
         var hid = btn.getAttribute("data-hist-id");
         var item = state.history.find(function (h) { return h.id === hid; });
-        if (item) state.calcExpr = String(item.result);
+        if (item) { state.calcExpr = String(item.result); state.calcJustEqualed = true; }
         state.historyOpen = false;
         render();
       };
@@ -1585,13 +1502,21 @@
 
     var calcInput = document.getElementById("calcInput");
     fitCalcDisplay(document.querySelector(".calc-display"));
+    fitExprDisplay(calcInput);
     if (calcInput) {
       calcInput.oninput = function (e) {
         state.calcExpr = e.target.value;
+        state.calcJustEqualed = false;
+        fitExprDisplay(calcInput);
         var disp = document.querySelector(".calc-display");
-        if (disp) { disp.textContent = liveCalcDisplay(); fitCalcDisplay(disp); }
+        if (disp) {
+          disp.classList.remove("final");
+          disp.classList.add("preview");
+          disp.textContent = liveCalcDisplay();
+          fitCalcDisplay(disp);
+        }
       };
-      calcInput.onkeydown = function (e) { if (e.key === "Enter") runCalc(); };
+      calcInput.onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); runCalc(); } };
       calcInput.onfocus = function () {
         if (state.keypadTarget && state.keypadTarget.type === "calc") return;
         if (state.keypadTarget && state.keypadTarget.type === "product") {
@@ -1603,6 +1528,18 @@
     }
     var keypadDoneBtn = document.getElementById("keypadDoneBtn");
     if (keypadDoneBtn) keypadDoneBtn.onclick = function () { closeKeypad(); vibrateKey(); };
+    var backspaceHandler = function () {
+      vibrateKey(35);
+      var t = state.keypadTarget;
+      if (!t) return;
+      if (t.type === "calc") { state.calcExpr = state.calcExpr.slice(0, -1); state.calcJustEqualed = false; }
+      else if (t.type === "product") state.kpBuffer = state.kpBuffer.slice(0, -1);
+      render();
+    };
+    var keypadBackBtn = document.getElementById("keypadBackBtn");
+    if (keypadBackBtn) keypadBackBtn.onclick = backspaceHandler;
+    var calcBackBtn = document.getElementById("calcBackBtn");
+    if (calcBackBtn) calcBackBtn.onclick = backspaceHandler;
     document.querySelectorAll("[data-kp-action]").forEach(function (btn) {
       btn.onclick = function () {
         var actionForVibe = btn.getAttribute("data-kp-action");
@@ -1613,27 +1550,22 @@
         var t = state.keypadTarget;
         if (!t) return;
         if (t.type === "calc") {
-          if (action === "char") state.calcExpr += btn.getAttribute("data-kp-value");
-          else if (action === "back") state.calcExpr = state.calcExpr.slice(0, -1);
-          else if (action === "clear") state.calcExpr = "";
+          if (action === "char") { state.calcExpr = appendCalcChar(state.calcExpr, btn.getAttribute("data-kp-value")); state.calcJustEqualed = false; }
+          else if (action === "paren") { state.calcExpr += smartParenChar(state.calcExpr); state.calcJustEqualed = false; }
+          else if (action === "back") { state.calcExpr = state.calcExpr.slice(0, -1); state.calcJustEqualed = false; }
+          else if (action === "clear") { state.calcExpr = ""; state.calcJustEqualed = false; }
+          else if (action === "negate") { state.calcExpr = toggleSign(state.calcExpr); state.calcJustEqualed = false; }
           else if (action === "equals") { runCalc(); return; }
           render();
         } else if (t.type === "product") {
-          if (action === "char") state.kpBuffer += btn.getAttribute("data-kp-value");
+          if (action === "char") state.kpBuffer = appendCalcChar(state.kpBuffer, btn.getAttribute("data-kp-value"));
+          else if (action === "paren") state.kpBuffer += smartParenChar(state.kpBuffer);
           else if (action === "back") state.kpBuffer = state.kpBuffer.slice(0, -1);
           else if (action === "clear") state.kpBuffer = "";
+          else if (action === "negate") state.kpBuffer = toggleSign(state.kpBuffer);
           else if (action === "equals") {
             var result = evaluateExpr(state.kpBuffer);
             if (result !== null) state.kpBuffer = String(result);
-          }
-          render();
-        } else if (t.type === "helper") {
-          if (action === "char") state.kpBuffer += btn.getAttribute("data-kp-value");
-          else if (action === "back") state.kpBuffer = state.kpBuffer.slice(0, -1);
-          else if (action === "clear") state.kpBuffer = "";
-          else if (action === "equals") {
-            var resultH = evaluateExpr(state.kpBuffer);
-            if (resultH !== null) state.kpBuffer = String(resultH);
           }
           render();
         }
@@ -1651,8 +1583,6 @@
   function closeKeypad() {
     if (state.keypadTarget && state.keypadTarget.type === "product") {
       commitProductField(state.keypadTarget, state.kpBuffer);
-    } else if (state.keypadTarget && state.keypadTarget.type === "helper") {
-      commitHelperField(state.keypadTarget, state.kpBuffer);
     }
     state.keypadTarget = null;
     state.kpBuffer = "";
@@ -1672,33 +1602,34 @@
     render();
   }
 
-  var calcFitCtx = null;
-  function getCalcFitCtx() {
-    if (!calcFitCtx) calcFitCtx = document.createElement("canvas").getContext("2d");
-    return calcFitCtx;
+  // shrinks font-size until the (now-wrapping) text fits inside the element's fixed box height —
+  // works for both the result readout and the expression trail, so a big number wraps to a new
+  // line (like Samsung Calculator) instead of getting cut off.
+  function fitWrapDisplay(el, maxSize, minSize) {
+    if (!el) return;
+    var size = maxSize;
+    el.style.fontSize = size + "px";
+    while (size > minSize && el.scrollHeight > el.clientHeight + 1) {
+      size -= 1;
+      el.style.fontSize = size + "px";
+    }
   }
 
   function fitCalcDisplay(el) {
     if (!el) return;
-    var text = el.textContent || "";
-    var maxSize = 46, minSize = 13;
-    var avail = el.clientWidth;
-    if (!avail) { el.style.fontSize = maxSize + "px"; return; }
-    var ctx = getCalcFitCtx();
-    var size = maxSize;
-    while (size > minSize) {
-      ctx.font = "800 " + size + 'px "Roboto Mono","Courier New",monospace';
-      if (ctx.measureText(text).width <= avail) break;
-      size -= 1;
-    }
-    el.style.fontSize = size + "px";
+    if (el.classList.contains("final")) fitWrapDisplay(el, 40, 13);
+    else fitWrapDisplay(el, 20, 11);
+  }
+
+  function fitExprDisplay(el) {
+    fitWrapDisplay(el, 22, 11);
   }
 
   function liveCalcDisplay() {
     var expr = state.calcExpr;
     if (!expr || !expr.trim()) return "0";
     var result = evaluateExpr(expr);
-    if (result !== null) return formatNumber(result);
+    if (result !== null) return formatNumberPlain(result, false);
     return "...";
   }
 
@@ -1707,6 +1638,7 @@
     if (result === null) return;
     var expr = state.calcExpr;
     state.calcExpr = String(result);
+    state.calcJustEqualed = true;
     render();
     db.from("history").insert({ owner_id: state.myUid, expr: expr, result: result })
       .then(function (r) { if (r.error) console.error(r.error); });
@@ -1759,7 +1691,7 @@
     loadProducts(uid);
     loadHistory(uid);
     unsubProducts = db.channel("products_" + uid)
-      .on("postgres_changes", { event: "*", schema: "public", table: "products", filter: "owner_id=eq." + uid }, function () { loadProducts(uid); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "products", filter: "owner_id=eq." + uid }, function () { if (!reorderSuppressed) loadProducts(uid); })
       .subscribe();
     unsubHistory = db.channel("history_" + uid)
       .on("postgres_changes", { event: "*", schema: "public", table: "history", filter: "owner_id=eq." + uid }, function () { loadHistory(uid); })
@@ -1846,10 +1778,141 @@
     if (!state.keypadTarget) return;
     if (state.activeView === "calc" && state.keypadTarget.type === "calc") return; // pinned, stays open
     var withinKeypad = e.target.closest && e.target.closest(".keypad-wrap");
-    var withinField = e.target.closest && e.target.closest("#calcInput, .value-field, .helper-input");
+    var withinField = e.target.closest && e.target.closest("#calcInput, .value-field");
     if (withinKeypad || withinField) return;
     closeKeypad();
   });
+
+  // long-press a product card, then drag it up/down to reorder the list
+  document.addEventListener("pointerdown", function (e) {
+    if (state.isReadOnly || state.activeView !== "products") return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    var cardEl = e.target.closest && e.target.closest(".card-row");
+    if (!cardEl) return;
+    if (e.target.closest(".value-field, .del-btn, .confirm-del")) return;
+    var listEl = cardEl.closest(".list");
+    if (!listEl || listEl.querySelectorAll(".card-row").length < 2) return;
+
+    var startX = e.clientX, startY = e.clientY, pointerId = e.pointerId;
+    var timer = setTimeout(function () {
+      cleanupPre();
+      beginCardDrag(cardEl, listEl, startY, pointerId);
+    }, 400);
+
+    function cleanupPre() {
+      clearTimeout(timer);
+      document.removeEventListener("pointermove", onPreMove);
+      document.removeEventListener("pointerup", onPreEnd);
+      document.removeEventListener("pointercancel", onPreEnd);
+    }
+    function onPreMove(ev) {
+      if (Math.abs(ev.clientX - startX) > 8 || Math.abs(ev.clientY - startY) > 8) cleanupPre();
+    }
+    function onPreEnd() { cleanupPre(); }
+
+    document.addEventListener("pointermove", onPreMove);
+    document.addEventListener("pointerup", onPreEnd);
+    document.addEventListener("pointercancel", onPreEnd);
+  });
+
+  function beginCardDrag(cardEl, listEl, startClientY, pointerId) {
+    var id = cardEl.getAttribute("data-product-id");
+    var cards = Array.prototype.slice.call(listEl.querySelectorAll(".card-row"));
+    var order = cards.map(function (c) { return c.getAttribute("data-product-id"); });
+    var startIndex = order.indexOf(id);
+    if (startIndex === -1) return;
+
+    var rect = cardEl.getBoundingClientRect();
+    var cs = window.getComputedStyle(cardEl);
+    var slotHeight = rect.height + (parseFloat(cs.marginBottom) || 0);
+
+    dragCtx = {
+      id: id, el: cardEl, listEl: listEl, cards: cards, order: order,
+      startIndex: startIndex, currentIndex: startIndex, liveOrder: order,
+      startClientY: startClientY, slotHeight: slotHeight, pointerId: pointerId
+    };
+
+    vibrateKey(40);
+    cardEl.classList.add("dragging");
+    cardEl.style.transition = "none";
+    cardEl.style.touchAction = "none";
+    cards.forEach(function (c) { if (c !== cardEl) c.style.transition = "transform 160ms ease"; });
+
+    try { cardEl.setPointerCapture(pointerId); } catch (err) {}
+    document.addEventListener("pointermove", onCardDragMove);
+    document.addEventListener("pointerup", onCardDragEnd);
+    document.addEventListener("pointercancel", onCardDragEnd);
+  }
+
+  function onCardDragMove(e) {
+    if (!dragCtx) return;
+    e.preventDefault();
+    var delta = e.clientY - dragCtx.startClientY;
+    dragCtx.el.style.transform = "translateY(" + delta + "px)";
+
+    var rawIndex = dragCtx.startIndex + Math.round(delta / dragCtx.slotHeight);
+    var newIndex = Math.max(0, Math.min(dragCtx.order.length - 1, rawIndex));
+    if (newIndex === dragCtx.currentIndex) return;
+    dragCtx.currentIndex = newIndex;
+
+    dragCtx.cards.forEach(function (c, idx) {
+      if (c === dragCtx.el) return;
+      var shift = 0;
+      if (dragCtx.startIndex < newIndex) {
+        if (idx > dragCtx.startIndex && idx <= newIndex) shift = -dragCtx.slotHeight;
+      } else if (dragCtx.startIndex > newIndex) {
+        if (idx >= newIndex && idx < dragCtx.startIndex) shift = dragCtx.slotHeight;
+      }
+      c.style.transform = shift ? "translateY(" + shift + "px)" : "";
+    });
+
+    var newOrder = dragCtx.order.slice();
+    newOrder.splice(dragCtx.startIndex, 1);
+    newOrder.splice(newIndex, 0, dragCtx.id);
+    dragCtx.liveOrder = newOrder;
+  }
+
+  function onCardDragEnd() {
+    if (!dragCtx) return;
+    document.removeEventListener("pointermove", onCardDragMove);
+    document.removeEventListener("pointerup", onCardDragEnd);
+    document.removeEventListener("pointercancel", onCardDragEnd);
+
+    var finalOrder = dragCtx.liveOrder;
+    var el = dragCtx.el, cards = dragCtx.cards;
+    el.classList.remove("dragging");
+    el.style.transform = ""; el.style.transition = ""; el.style.touchAction = "";
+    cards.forEach(function (c) { c.style.transform = ""; c.style.transition = ""; });
+
+    commitProductOrder(finalOrder);
+    dragCtx = null;
+  }
+
+  function commitProductOrder(orderIds) {
+    if (!orderIds || orderIds.length < 2) return;
+    var byId = {};
+    state.products.forEach(function (p) { byId[p.id] = p; });
+    var reordered = orderIds.map(function (id) { return byId[id]; }).filter(Boolean);
+    if (reordered.length !== state.products.length) return;
+
+    state.products = reordered;
+    render();
+
+    reorderSuppressed = true;
+    var base = Date.now();
+    var uid = state.viewingUid;
+    Promise.all(reordered.map(function (p, i) {
+      var ts = new Date(base - i * 1000).toISOString();
+      return db.from("products").update({ created_at: ts }).eq("id", p.id);
+    })).then(function (results) {
+      results.forEach(function (r) { if (r && r.error) console.error(r.error); });
+    }).catch(function (err) {
+      console.error(err);
+    }).then(function () {
+      reorderSuppressed = false;
+      if (uid) loadProducts(uid);
+    });
+  }
 
   render();
 })();

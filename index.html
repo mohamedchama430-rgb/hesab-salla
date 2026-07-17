@@ -1211,7 +1211,7 @@
       btn.onclick = function () {
         var hid = btn.getAttribute("data-hist-id");
         var item = state.history.find(function (h) { return h.id === hid; });
-        if (item) { state.calcExpr = String(item.result); state.calcCursor = null; state.calcJustEqualed = true; }
+        if (item) { state.calcExpr = String(item.expr); state.calcCursor = null; state.calcJustEqualed = false; }
         state.historyPageOpen = false;
         render();
       };
@@ -1639,7 +1639,7 @@
       btn.onclick = function () {
         var hid = btn.getAttribute("data-hist-id");
         var item = state.history.find(function (h) { return h.id === hid; });
-        if (item) { state.calcExpr = String(item.result); state.calcCursor = null; state.calcJustEqualed = true; }
+        if (item) { state.calcExpr = String(item.expr); state.calcCursor = null; state.calcJustEqualed = false; }
         state.historyOpen = false;
         render();
       };

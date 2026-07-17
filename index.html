@@ -251,8 +251,8 @@
   .calc-display {
     text-align: right; direction: ltr; overflow: hidden; white-space: pre-wrap; word-break: break-all; flex-shrink: 0;
   }
-  .calc-display.preview { font-weight: 700; color: var(--textDim); margin: 2px 2px 4px; height: 32px; line-height: 1.2; }
-  .calc-display.final { font-weight: 800; color: var(--amber); margin: 14px 2px 6px; height: 88px; line-height: 1.15; }
+  .calc-display.preview { font-weight: 700; color: var(--textDim); margin: 8px 2px 6px; height: 52px; line-height: 1.2; }
+  .calc-display.final { font-weight: 800; color: var(--amber); margin: 8px 2px 6px; height: 52px; line-height: 1.15; }
   .calc-box-merged { padding-bottom: 12px; display: flex; flex-direction: column; flex: 1; min-height: 0; }
   .calc-pad-divider { height: 1px; background: var(--border); opacity: 0.6; margin: 2px 0 10px; flex-shrink: 0; }
 
@@ -454,6 +454,7 @@
     sortMode: "default", // "default" | "price_desc" | "price_asc" | "name"
     sortMenuOpen: false,
     calcExpr: "",
+    calcCursor: null,
     calcDisplay: "0",
     calcJustEqualed: false,
     historyOpen: false,
@@ -567,6 +568,13 @@
     var justFinishedAValue = /[0-9)%]/.test(last);
     if (opens > closes && justFinishedAValue) return ")";
     return "(";
+  }
+  // where the "cursor" sits inside calcExpr for keypad-driven insert/delete —
+  // clamped to the current text length, defaulting to the end when untouched.
+  function calcCursorPos() {
+    var len = state.calcExpr.length;
+    if (state.calcCursor == null) return len;
+    return Math.max(0, Math.min(state.calcCursor, len));
   }
   function esc(str) {
     var d = document.createElement("div");
@@ -853,7 +861,8 @@
         try {
           ci.focus({ preventScroll: true });
           var vlen = ci.value.length;
-          ci.setSelectionRange(vlen, vlen);
+          var restorePos = state.calcCursor == null ? vlen : Math.max(0, Math.min(state.calcCursor, vlen));
+          ci.setSelectionRange(restorePos, restorePos);
         } catch (e) {}
       }
     } else if (state.keypadTarget.type === "product") {
@@ -1202,7 +1211,7 @@
       btn.onclick = function () {
         var hid = btn.getAttribute("data-hist-id");
         var item = state.history.find(function (h) { return h.id === hid; });
-        if (item) { state.calcExpr = String(item.result); state.calcJustEqualed = true; }
+        if (item) { state.calcExpr = String(item.result); state.calcCursor = null; state.calcJustEqualed = true; }
         state.historyPageOpen = false;
         render();
       };
@@ -1630,7 +1639,7 @@
       btn.onclick = function () {
         var hid = btn.getAttribute("data-hist-id");
         var item = state.history.find(function (h) { return h.id === hid; });
-        if (item) { state.calcExpr = String(item.result); state.calcJustEqualed = true; }
+        if (item) { state.calcExpr = String(item.result); state.calcCursor = null; state.calcJustEqualed = true; }
         state.historyOpen = false;
         render();
       };
@@ -1642,6 +1651,7 @@
     if (calcInput) {
       calcInput.oninput = function (e) {
         state.calcExpr = e.target.value;
+        state.calcCursor = e.target.selectionStart;
         state.calcJustEqualed = false;
         fitExprDisplay(calcInput);
         var disp = document.querySelector(".calc-display");
@@ -1652,6 +1662,10 @@
           fitCalcDisplay(disp);
         }
       };
+      var trackCalcCursor = function () { state.calcCursor = calcInput.selectionStart; };
+      calcInput.onclick = trackCalcCursor;
+      calcInput.onkeyup = trackCalcCursor;
+      calcInput.onselect = trackCalcCursor;
       calcInput.onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); runCalc(); } };
       calcInput.onfocus = function () {
         if (state.keypadTarget && state.keypadTarget.type === "calc") return;
@@ -1668,7 +1682,14 @@
       vibrateKey(35);
       var t = state.keypadTarget;
       if (!t) return;
-      if (t.type === "calc") { state.calcExpr = state.calcExpr.slice(0, -1); state.calcJustEqualed = false; }
+      if (t.type === "calc") {
+        var bPos = calcCursorPos();
+        if (bPos > 0) {
+          state.calcExpr = state.calcExpr.slice(0, bPos - 1) + state.calcExpr.slice(bPos);
+          state.calcCursor = bPos - 1;
+        }
+        state.calcJustEqualed = false;
+      }
       else if (t.type === "product") state.kpBuffer = state.kpBuffer.slice(0, -1);
       render();
     };
@@ -1686,12 +1707,35 @@
         var t = state.keypadTarget;
         if (!t) return;
         if (t.type === "calc") {
-          if (action === "char") { state.calcExpr = appendCalcChar(state.calcExpr, btn.getAttribute("data-kp-value")); state.calcJustEqualed = false; }
-          else if (action === "paren") { state.calcExpr += smartParenChar(state.calcExpr); state.calcJustEqualed = false; }
-          else if (action === "back") { state.calcExpr = state.calcExpr.slice(0, -1); state.calcJustEqualed = false; }
-          else if (action === "clear") { state.calcExpr = ""; state.calcJustEqualed = false; }
-          else if (action === "negate") { state.calcExpr = toggleSign(state.calcExpr); state.calcJustEqualed = false; }
-          else if (action === "equals") { runCalc(); return; }
+          var cPos = calcCursorPos();
+          var cBefore = state.calcExpr.slice(0, cPos);
+          var cAfter = state.calcExpr.slice(cPos);
+          if (action === "char") {
+            var newBefore = appendCalcChar(cBefore, btn.getAttribute("data-kp-value"));
+            state.calcExpr = newBefore + cAfter;
+            state.calcCursor = newBefore.length;
+            state.calcJustEqualed = false;
+          } else if (action === "paren") {
+            var parenCh = smartParenChar(cBefore);
+            state.calcExpr = cBefore + parenCh + cAfter;
+            state.calcCursor = cPos + 1;
+            state.calcJustEqualed = false;
+          } else if (action === "back") {
+            if (cPos > 0) {
+              state.calcExpr = cBefore.slice(0, -1) + cAfter;
+              state.calcCursor = cPos - 1;
+            }
+            state.calcJustEqualed = false;
+          } else if (action === "clear") {
+            state.calcExpr = "";
+            state.calcCursor = 0;
+            state.calcJustEqualed = false;
+          } else if (action === "negate") {
+            var toggledBefore = toggleSign(cBefore);
+            state.calcExpr = toggledBefore + cAfter;
+            state.calcCursor = toggledBefore.length;
+            state.calcJustEqualed = false;
+          } else if (action === "equals") { runCalc(); return; }
           render();
         } else if (t.type === "product") {
           if (action === "char") state.kpBuffer = appendCalcChar(state.kpBuffer, btn.getAttribute("data-kp-value"));
@@ -1756,7 +1800,7 @@
 
   function fitCalcDisplay(el) {
     if (!el) return;
-    if (el.classList.contains("final")) fitWrapDisplay(el, 40, 13);
+    if (el.classList.contains("final")) fitWrapDisplay(el, 32, 13);
     else fitWrapDisplay(el, 20, 11);
   }
 
@@ -1777,6 +1821,7 @@
     if (result === null) return;
     var expr = state.calcExpr;
     state.calcExpr = String(result);
+    state.calcCursor = null;
     state.calcJustEqualed = true;
     render();
     db.from("history").insert({ owner_id: state.myUid, expr: expr, result: result })

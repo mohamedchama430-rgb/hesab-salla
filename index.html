@@ -251,7 +251,7 @@
   .calc-display {
     text-align: right; direction: ltr; overflow: hidden; white-space: pre-wrap; word-break: break-all; flex-shrink: 0;
   }
-  .calc-display.preview { font-weight: 700; color: var(--teal); margin: 2px 2px 4px; height: 32px; line-height: 1.2; }
+  .calc-display.preview { font-weight: 700; color: var(--textDim); margin: 2px 2px 4px; height: 32px; line-height: 1.2; }
   .calc-display.final { font-weight: 800; color: var(--amber); margin: 14px 2px 6px; height: 88px; line-height: 1.15; }
   .calc-box-merged { padding-bottom: 12px; display: flex; flex-direction: column; flex: 1; min-height: 0; }
   .calc-pad-divider { height: 1px; background: var(--border); opacity: 0.6; margin: 2px 0 10px; flex-shrink: 0; }
@@ -540,54 +540,13 @@
   // prevents "5+++5" — if the last character already typed is an operator, tapping
   // another operator replaces it instead of stacking a new one after it.
   var CALC_OPERATORS = ["+", "-", "×", "÷"];
-  function clampPos(s, pos) {
-    if (pos == null || isNaN(pos)) return s.length;
-    return Math.max(0, Math.min(pos, s.length));
-  }
-  // reads the caret/selection out of whichever field is currently being typed
-  // into, falling back to "end of string" if the field isn't available — used
-  // so keypad taps edit wherever the cursor actually is, not always the end.
-  function getFieldSelection(el, fallbackLen) {
-    // Only trust the browser's reported caret position when the field is
-    // actually the active/focused element. Right after a re-render, focus()
-    // can land a tick late — in that gap selectionStart often reads back as
-    // 0 even though nothing is really selected there, which made keypad taps
-    // insert at the very start of the expression instead of at the end.
-    if (el && document.activeElement === el) {
-      try {
-        var s = el.selectionStart, e = el.selectionEnd;
-        if (typeof s === "number" && typeof e === "number") return { start: s, end: e };
-      } catch (err) {}
-    }
-    return { start: fallbackLen, end: fallbackLen };
-  }
-  // inserts a character/token at the cursor (replacing any selection first)
-  // instead of always appending to the end of the expression.
-  function insertCalcChar(current, start, end, value) {
+  function appendCalcChar(current, value) {
     var s = String(current || "");
-    start = clampPos(s, start);
-    end = clampPos(s, end);
-    if (start > end) { var tmp = start; start = end; end = tmp; }
-    if (start !== end) { s = s.slice(0, start) + s.slice(end); }
-    var pos = start;
-    if (CALC_OPERATORS.indexOf(value) !== -1 && pos > 0) {
-      var prev = s.charAt(pos - 1);
-      if (CALC_OPERATORS.indexOf(prev) !== -1) {
-        return { text: s.slice(0, pos - 1) + value + s.slice(pos), cursor: pos };
-      }
+    if (CALC_OPERATORS.indexOf(value) !== -1 && s.length) {
+      var last = s.charAt(s.length - 1);
+      if (CALC_OPERATORS.indexOf(last) !== -1) return s.slice(0, -1) + value;
     }
-    return { text: s.slice(0, pos) + value + s.slice(pos), cursor: pos + value.length };
-  }
-  // deletes the selection, or the single character before the cursor, instead
-  // of always trimming the last character off the end of the expression.
-  function deleteCalcChar(current, start, end) {
-    var s = String(current || "");
-    start = clampPos(s, start);
-    end = clampPos(s, end);
-    if (start > end) { var tmp2 = start; start = end; end = tmp2; }
-    if (start !== end) { return { text: s.slice(0, start) + s.slice(end), cursor: start }; }
-    if (start === 0) return { text: s, cursor: 0 };
-    return { text: s.slice(0, start - 1) + s.slice(start), cursor: start - 1 };
+    return s + value;
   }
   function toggleSign(expr) {
     var s = String(expr || "");
@@ -600,8 +559,8 @@
   }
   // smart "()" key — like Samsung Calculator: figures out whether the next tap should
   // open a new group or close the current one, based on what's already been typed.
-  function smartParenChar(exprBeforeCursor) {
-    var s = String(exprBeforeCursor || "");
+  function smartParenChar(expr) {
+    var s = String(expr || "");
     var opens = (s.match(/\(/g) || []).length;
     var closes = (s.match(/\)/g) || []).length;
     var last = s.length ? s.charAt(s.length - 1) : "";
@@ -805,9 +764,9 @@
         html += '      <span>الحاسبة</span>';
         html += '    </div>';
         html += '    <div class="calc-row">';
-        html += '      <textarea id="calcInput" dir="ltr" rows="1" inputmode="none" autocomplete="off" spellcheck="false" class="mono calc-expr" placeholder="5×5 + 3...">' + esc(state.calcExpr) + '</textarea>';
+        html += '      <textarea id="calcInput" rows="1" inputmode="none" autocomplete="off" spellcheck="false" class="mono calc-expr" placeholder="5×5 + 3...">' + esc(state.calcExpr) + '</textarea>';
         html += '    </div>';
-        html += '    <div class="calc-display mono ' + (state.calcJustEqualed ? "final" : "preview") + '" dir="ltr">' + esc(liveCalcDisplay()) + '</div>';
+        html += '    <div class="calc-display mono ' + (state.calcJustEqualed ? "final" : "preview") + '">' + esc(liveCalcDisplay()) + '</div>';
         html += '    <div class="calc-tools-row">';
         html += '      <button id="calcBackBtn" class="calc-back-mini" aria-label="مسح خانة">' + icon("delete", 16, 2) + '</button>';
         html += '      <button id="histToggleBtn" class="hist-toggle">' + icon("history", 13) + ' السجل</button>';
@@ -1243,7 +1202,7 @@
       btn.onclick = function () {
         var hid = btn.getAttribute("data-hist-id");
         var item = state.history.find(function (h) { return h.id === hid; });
-        if (item) { state.calcExpr = item.expr; state.calcJustEqualed = false; }
+        if (item) { state.calcExpr = String(item.result); state.calcJustEqualed = true; }
         state.historyPageOpen = false;
         render();
       };
@@ -1671,7 +1630,7 @@
       btn.onclick = function () {
         var hid = btn.getAttribute("data-hist-id");
         var item = state.history.find(function (h) { return h.id === hid; });
-        if (item) { state.calcExpr = item.expr; state.calcJustEqualed = false; }
+        if (item) { state.calcExpr = String(item.result); state.calcJustEqualed = true; }
         state.historyOpen = false;
         render();
       };
@@ -1694,66 +1653,25 @@
         }
       };
       calcInput.onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); runCalc(); } };
-      calcInput.onfocus = function (e) {
+      calcInput.onfocus = function () {
         if (state.keypadTarget && state.keypadTarget.type === "calc") return;
         if (state.keypadTarget && state.keypadTarget.type === "product") {
           commitProductField(state.keypadTarget, state.kpBuffer);
         }
-        // Re-rendering rebuilds this textarea from scratch, which would wipe
-        // out the caret position the user just tapped to (snapping it back to
-        // the end). Wait a tick for the browser to finish placing the caret
-        // at the tapped spot, then restore that exact position on the new
-        // element after render() recreates it.
-        var el = e.target;
-        setTimeout(function () {
-          var caretStart = el.selectionStart, caretEnd = el.selectionEnd;
-          state.keypadTarget = { type: "calc" };
-          render();
-          var newInput = document.getElementById("calcInput");
-          if (newInput) {
-            newInput.focus();
-            try { newInput.setSelectionRange(caretStart, caretEnd); } catch (err) {}
-          }
-        }, 0);
+        state.keypadTarget = { type: "calc" };
+        render();
       };
     }
     var keypadDoneBtn = document.getElementById("keypadDoneBtn");
     if (keypadDoneBtn) keypadDoneBtn.onclick = function () { closeKeypad(); vibrateKey(); };
-    // finds the field the current keypad target is editing, so taps can read/
-    // set its caret position instead of blindly acting on the end of the string
-    function fieldForTarget(t) {
-      if (!t) return null;
-      if (t.type === "calc") return document.getElementById("calcInput");
-      if (t.type === "product") return document.querySelector('.value-field[data-id="' + t.id + '"][data-field="' + t.field + '"]');
-      return null;
-    }
     var backspaceHandler = function () {
       vibrateKey(35);
       var t = state.keypadTarget;
       if (!t) return;
-      if (t.type === "calc") {
-        var selC = getFieldSelection(fieldForTarget(t), state.calcExpr.length);
-        var resC = deleteCalcChar(state.calcExpr, selC.start, selC.end);
-        state.calcExpr = resC.text; state.calcJustEqualed = false;
-        quickCalcUpdate(resC.cursor);
-      } else if (t.type === "product") {
-        var selP = getFieldSelection(fieldForTarget(t), state.kpBuffer.length);
-        var resP = deleteCalcChar(state.kpBuffer, selP.start, selP.end);
-        state.kpBuffer = resP.text;
-        quickProductFieldUpdate(t, resP.cursor);
-      }
+      if (t.type === "calc") { state.calcExpr = state.calcExpr.slice(0, -1); state.calcJustEqualed = false; }
+      else if (t.type === "product") state.kpBuffer = state.kpBuffer.slice(0, -1);
+      render();
     };
-    // Tapping any keypad button normally steals focus from whichever field is
-    // being edited *before* the click handler runs, which loses the caret
-    // position that was tapped into and makes every key insert at the end
-    // instead of where the user meant it to go. Blocking the default
-    // mousedown/touchstart action keeps the field focused (and its selection
-    // intact) the whole time the keypad is being used.
-    var keepFieldFocused = function (e) { e.preventDefault(); };
-    document.querySelectorAll(".kp-btn, #keypadBackBtn, #calcBackBtn").forEach(function (btn) {
-      btn.onmousedown = keepFieldFocused;
-      btn.ontouchstart = keepFieldFocused;
-    });
     var keypadBackBtn = document.getElementById("keypadBackBtn");
     if (keypadBackBtn) keypadBackBtn.onclick = backspaceHandler;
     var calcBackBtn = document.getElementById("calcBackBtn");
@@ -1768,117 +1686,27 @@
         var t = state.keypadTarget;
         if (!t) return;
         if (t.type === "calc") {
-          var selC = getFieldSelection(fieldForTarget(t), state.calcExpr.length);
-          if (action === "char") {
-            var rC = insertCalcChar(state.calcExpr, selC.start, selC.end, btn.getAttribute("data-kp-value"));
-            state.calcExpr = rC.text; state.calcJustEqualed = false;
-            quickCalcUpdate(rC.cursor);
-          } else if (action === "paren") {
-            var pChar = smartParenChar(state.calcExpr.slice(0, clampPos(state.calcExpr, selC.start)));
-            var rP = insertCalcChar(state.calcExpr, selC.start, selC.end, pChar);
-            state.calcExpr = rP.text; state.calcJustEqualed = false;
-            quickCalcUpdate(rP.cursor);
-          } else if (action === "back") {
-            var rB = deleteCalcChar(state.calcExpr, selC.start, selC.end);
-            state.calcExpr = rB.text; state.calcJustEqualed = false;
-            quickCalcUpdate(rB.cursor);
-          } else if (action === "clear") {
-            state.calcExpr = ""; state.calcJustEqualed = false;
-            quickCalcUpdate(0);
-          } else if (action === "negate") {
-            state.calcExpr = toggleSign(state.calcExpr); state.calcJustEqualed = false;
-            quickCalcUpdate();
-          } else if (action === "equals") { runCalc(); return; }
+          if (action === "char") { state.calcExpr = appendCalcChar(state.calcExpr, btn.getAttribute("data-kp-value")); state.calcJustEqualed = false; }
+          else if (action === "paren") { state.calcExpr += smartParenChar(state.calcExpr); state.calcJustEqualed = false; }
+          else if (action === "back") { state.calcExpr = state.calcExpr.slice(0, -1); state.calcJustEqualed = false; }
+          else if (action === "clear") { state.calcExpr = ""; state.calcJustEqualed = false; }
+          else if (action === "negate") { state.calcExpr = toggleSign(state.calcExpr); state.calcJustEqualed = false; }
+          else if (action === "equals") { runCalc(); return; }
+          render();
         } else if (t.type === "product") {
-          var selP = getFieldSelection(fieldForTarget(t), state.kpBuffer.length);
-          if (action === "char") {
-            var rC2 = insertCalcChar(state.kpBuffer, selP.start, selP.end, btn.getAttribute("data-kp-value"));
-            state.kpBuffer = rC2.text;
-            quickProductFieldUpdate(t, rC2.cursor);
-          } else if (action === "paren") {
-            var pChar2 = smartParenChar(state.kpBuffer.slice(0, clampPos(state.kpBuffer, selP.start)));
-            var rP2 = insertCalcChar(state.kpBuffer, selP.start, selP.end, pChar2);
-            state.kpBuffer = rP2.text;
-            quickProductFieldUpdate(t, rP2.cursor);
-          } else if (action === "back") {
-            var rB2 = deleteCalcChar(state.kpBuffer, selP.start, selP.end);
-            state.kpBuffer = rB2.text;
-            quickProductFieldUpdate(t, rB2.cursor);
-          } else if (action === "clear") {
-            state.kpBuffer = "";
-            quickProductFieldUpdate(t, 0);
-          } else if (action === "negate") {
-            state.kpBuffer = toggleSign(state.kpBuffer);
-            quickProductFieldUpdate(t);
-          } else if (action === "equals") {
+          if (action === "char") state.kpBuffer = appendCalcChar(state.kpBuffer, btn.getAttribute("data-kp-value"));
+          else if (action === "paren") state.kpBuffer += smartParenChar(state.kpBuffer);
+          else if (action === "back") state.kpBuffer = state.kpBuffer.slice(0, -1);
+          else if (action === "clear") state.kpBuffer = "";
+          else if (action === "negate") state.kpBuffer = toggleSign(state.kpBuffer);
+          else if (action === "equals") {
             var result = evaluateExpr(state.kpBuffer);
             if (result !== null) state.kpBuffer = String(result);
-            quickProductFieldUpdate(t);
           }
+          render();
         }
       };
     });
-  }
-
-  // fast-path updates used by the on-screen keypad so a digit tap doesn't have
-  // to rebuild the entire page (header + full product list) just to show one
-  // extra character — that full rebuild was the source of the visible lag/delay.
-  function quickCalcUpdate(cursorPos) {
-    var ci = document.getElementById("calcInput");
-    if (ci) {
-      ci.value = state.calcExpr;
-      fitExprDisplay(ci);
-      try {
-        var pos = cursorPos == null ? ci.value.length : clampPos(ci.value, cursorPos);
-        ci.setSelectionRange(pos, pos);
-      } catch (e) {}
-    }
-    var disp = document.querySelector(".calc-display");
-    if (disp) {
-      disp.classList.toggle("final", !!state.calcJustEqualed);
-      disp.classList.toggle("preview", !state.calcJustEqualed);
-      disp.textContent = liveCalcDisplay();
-      fitCalcDisplay(disp);
-    }
-  }
-
-  function quickProductFieldUpdate(target, cursorPos) {
-    var input = document.querySelector('.value-field[data-id="' + target.id + '"][data-field="' + target.field + '"]');
-    if (!input) { render(); return; }
-    input.value = state.kpBuffer;
-    input.classList.toggle("filled", !!state.kpBuffer);
-    try {
-      var pPos = cursorPos == null ? input.value.length : clampPos(input.value, cursorPos);
-      input.setSelectionRange(pPos, pPos);
-    } catch (e) {}
-
-    var card = input.closest(".card-row");
-    var p = state.products.find(function (pp) { return pp.id === target.id; });
-    if (!card || !p) return;
-
-    var biroRaw = target.field === "biro" ? state.kpBuffer : fieldValue(p, "biro");
-    var makhzanRaw = target.field === "makhzan" ? state.kpBuffer : fieldValue(p, "makhzan");
-    var biroVal = evaluateExpr(biroRaw);
-    var makhzanVal = evaluateExpr(makhzanRaw);
-    var sum = (biroVal !== null ? biroVal : 0) + (makhzanVal !== null ? makhzanVal : 0);
-    var hasAny = biroVal !== null || makhzanVal !== null;
-    var sumEl = card.querySelector(".card-sum-mini");
-    if (hasAny) {
-      var text = "مجموع " + formatNumberPlain(sum, false);
-      if (sumEl) {
-        sumEl.textContent = text;
-      } else {
-        var nameDiv = card.querySelector(".card-name");
-        if (nameDiv) {
-          sumEl = document.createElement("span");
-          sumEl.className = "card-sum-mini mono";
-          sumEl.textContent = text;
-          nameDiv.appendChild(sumEl);
-        }
-      }
-    } else if (sumEl) {
-      sumEl.remove();
-    }
   }
 
   function vibrateKey(ms) {

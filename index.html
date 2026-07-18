@@ -537,6 +537,8 @@
     newWorkerName: "",
     newWorkerEmail: "",
     newWorkerPassword: "",
+    newWorkerType: "reception", // "reception" | "polyvalent"
+    myWorkerType: "reception", // نوع الخدام الحالي (غير مستعملة للأدمن)
     confirmDisableUid: null,
 
     editingWorkerId: null,
@@ -824,6 +826,39 @@
     });
   }
 
+  // ---------- واجهة بولفانو المبسطة: غير ملاحظات / مهام / أرشيف مهام ----------
+  function renderPolyvalentHome() {
+    var html = "";
+    html += '<div class="header">';
+    html += '  <div class="header-row">';
+    html += '    <div><h1>حساب الصالة</h1><p class="sub">صالة الحديد &middot; ' + esc(state.myName) + '</p></div>';
+    html += '    <div class="header-actions">';
+    html += '      <button id="polyLogoutBtn" class="icon-btn ghost" aria-label="خروج">' + icon("logout", 18, 2) + '</button>';
+    html += '    </div>';
+    html += '  </div>';
+    html += '</div>';
+
+    html += '<div style="padding:16px;display:flex;flex-direction:column;gap:12px;">';
+    html += '  <button data-poly-nav="notes" class="card" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("note", 20, 2) + '<span style="flex:1;font-weight:700;">الملاحظات</span>' + (state.hasUnreadNotes ? '<span class="notif-dot" style="position:static;border:none;"></span>' : '') + '</button>';
+    html += '  <button data-poly-nav="tasks" class="card" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("tasks", 20, 2) + '<span style="flex:1;font-weight:700;">المهام</span>' + (openTasksCount() > 0 ? '<span class="mono" style="font-size:12px;color:var(--amber);font-weight:800;">' + openTasksCount() + '</span>' : '') + '</button>';
+    html += '  <button data-poly-nav="archive" class="card" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("box", 20, 2) + '<span style="flex:1;font-weight:700;">أرشيف المهام</span></button>';
+    html += '</div>';
+
+    root.innerHTML = html;
+
+    var logoutBtn = document.getElementById("polyLogoutBtn");
+    if (logoutBtn) logoutBtn.onclick = doLogout;
+
+    document.querySelectorAll("[data-poly-nav]").forEach(function (btn) {
+      btn.onclick = function () {
+        var target = btn.getAttribute("data-poly-nav");
+        if (target === "notes") { state.notesOpen = true; markNotesSeen(); render(); }
+        else if (target === "tasks") { state.tasksOpen = true; render(); }
+        else if (target === "archive") { openArchive(); }
+      };
+    });
+  }
+
   function render() {
     if (state.authState !== "in") {
       renderAuth();
@@ -855,6 +890,12 @@
     }
     if (state.adminOpen) {
       renderAdminPanel();
+      return;
+    }
+
+    // بولفانو: ماعندوش وصول للحاسبة ولا المنتجات، غير الملاحظات/المهام/الأرشيف
+    if (state.myRole !== "admin" && state.myWorkerType === "polyvalent") {
+      renderPolyvalentHome();
       return;
     }
 
@@ -2396,18 +2437,26 @@
     html += '    <input id="newWorkerNameInput" type="text" placeholder="سمية الخدام الجديد" value="' + esc(state.newWorkerName) + '" />';
     html += '    <input id="newWorkerEmailInput" type="email" placeholder="إيميل (مثلا: karim@hasbatsalla.app)" value="' + esc(state.newWorkerEmail) + '" />';
     html += '    <input id="newWorkerPasswordInput" type="text" placeholder="كلمة سر مؤقتة" value="' + esc(state.newWorkerPassword) + '" />';
+    html += '    <div style="display:flex;gap:8px;">';
+    html += '      <button type="button" class="clear-btn' + (state.newWorkerType === "reception" ? " active" : "") + '" data-new-worker-type="reception" style="flex:1;">رسبسيو</button>';
+    html += '      <button type="button" class="clear-btn' + (state.newWorkerType === "polyvalent" ? " active" : "") + '" data-new-worker-type="polyvalent" style="flex:1;">بولفانو</button>';
+    html += '    </div>';
     html += '    <button id="addWorkerBtn" class="confirm-btn" style="width:100%;"' + (state.adminBusy ? " disabled" : "") + '>' + (state.adminBusy ? "جاري الزيادة..." : "زيد خدام") + '</button>';
     if (state.adminError) html += '    <p class="auth-error">' + esc(state.adminError) + '</p>';
     html += '  </div>';
 
     state.workers.forEach(function (w) {
       html += '<div class="card">';
-      html += '  <div class="card-row"><span class="card-name">' + esc(w.name) + (w.role === "admin" ? " · admin" : "") + '</span>';
+      html += '  <div class="card-row"><span class="card-name">' + esc(w.name) + (w.role === "admin" ? " · admin" : " · " + (w.worker_type === "polyvalent" ? "بولفانو" : "رسبسيو")) + '</span>';
       html += '    <span style="font-size:12px;color:' + (w.active ? "#4ade80" : "#f87171") + ';">' + (w.active ? "فعّال" : "معطل") + '</span></div>';
 
       html += '  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">';
       if (w.id !== state.myUid) {
         html += '    <button class="clear-btn" data-toggle-active="' + w.id + '" data-next-active="' + (!w.active) + '">' + (w.active ? "عطّل" : "فعّل") + '</button>';
+      }
+      if (w.role !== "admin") {
+        var nextType = w.worker_type === "polyvalent" ? "reception" : "polyvalent";
+        html += '    <button class="clear-btn" data-toggle-worker-type="' + w.id + '" data-next-type="' + nextType + '">' + (w.worker_type === "polyvalent" ? "بدلو لرسبسيو" : "بدلو لبولفانو") + '</button>';
       }
       html += '    <button class="clear-btn" data-edit-worker="' + w.id + '">' + (state.editingWorkerId === w.id ? "إلغاء" : "تعديل") + '</button>';
       if (w.id !== state.myUid) {
@@ -2450,6 +2499,10 @@
     var pwEl = document.getElementById("newWorkerPasswordInput");
     if (pwEl) pwEl.oninput = function (e) { state.newWorkerPassword = e.target.value; };
 
+    document.querySelectorAll("[data-new-worker-type]").forEach(function (btn) {
+      btn.onclick = function () { state.newWorkerType = btn.getAttribute("data-new-worker-type"); render(); };
+    });
+
     var addBtn = document.getElementById("addWorkerBtn");
     if (addBtn) addBtn.onclick = function () {
       if (!state.newWorkerName.trim() || !state.newWorkerEmail.trim() || !state.newWorkerPassword.trim()) {
@@ -2460,9 +2513,11 @@
       state.adminBusy = true;
       state.adminError = "";
       render();
+      var createdName = state.newWorkerName.trim();
+      var chosenType = state.newWorkerType;
       callAdminFn({
         action: "create",
-        name: state.newWorkerName.trim(),
+        name: createdName,
         email: state.newWorkerEmail.trim(),
         password: state.newWorkerPassword.trim()
       }).then(function () {
@@ -2470,13 +2525,36 @@
         state.newWorkerName = "";
         state.newWorkerEmail = "";
         state.newWorkerPassword = "";
-        loadWorkers();
+        state.newWorkerType = "reception";
+        render();
+        if (chosenType === "polyvalent") {
+          // البروفايل تولد بنوع "reception" افتراضيا (default فSupabase)، نبدلوه هنا لبولفانو
+          db.from("profiles").select("id").eq("name", createdName).order("created_at", { ascending: false }).limit(1)
+            .then(function (r) {
+              if (!r.error && r.data && r.data[0]) {
+                return db.from("profiles").update({ worker_type: "polyvalent" }).eq("id", r.data[0].id);
+              }
+            }).then(function () { loadWorkers(); }).catch(function () { loadWorkers(); });
+        } else {
+          loadWorkers();
+        }
       }).catch(function (e) {
         state.adminBusy = false;
         state.adminError = e.message || "وقع مشكل";
         render();
       });
     };
+
+    document.querySelectorAll("[data-toggle-worker-type]").forEach(function (btn) {
+      btn.onclick = function () {
+        var uid = btn.getAttribute("data-toggle-worker-type");
+        var nextType = btn.getAttribute("data-next-type");
+        db.from("profiles").update({ worker_type: nextType }).eq("id", uid).then(function (r) {
+          if (r.error) { state.adminError = r.error.message || "وقع مشكل"; render(); return; }
+          loadWorkers();
+        });
+      };
+    });
 
     document.querySelectorAll("[data-toggle-active]").forEach(function (btn) {
       btn.onclick = function () {
@@ -3057,7 +3135,7 @@
 
   // ---------- لائحة الخدامين (profiles) - بديل directory/WORKERS القدام ----------
   function loadWorkers() {
-    return db.from("profiles").select("id, name, role, active").order("created_at", { ascending: true })
+    return db.from("profiles").select("id, name, role, active, worker_type").order("created_at", { ascending: true })
       .then(function (res) {
         if (res.error) { console.error(res.error); return; }
         state.workers = res.data;
@@ -3087,7 +3165,7 @@
   }
 
   function onSignedIn(user) {
-    db.from("profiles").select("name, role, active").eq("id", user.id).single().then(function (res) {
+    db.from("profiles").select("name, role, active, worker_type").eq("id", user.id).single().then(function (res) {
       if (res.error || !res.data) {
         console.error(res.error);
         state.authState = "out";
@@ -3104,6 +3182,7 @@
       }
       state.myName = res.data.name;
       state.myRole = res.data.role;
+      state.myWorkerType = res.data.worker_type || "reception";
       state.myUid = user.id;
       state.authState = "in";
       state.authBusy = false;
@@ -3127,6 +3206,7 @@
       state.myName = null;
       state.myUid = null;
       state.myRole = "worker";
+      state.myWorkerType = "reception";
       render();
       return;
     }

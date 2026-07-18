@@ -815,12 +815,12 @@
       renderNotes();
       return;
     }
-    if (state.tasksOpen) {
-      renderTasks();
-      return;
-    }
     if (state.commentsOpen) {
       renderTaskComments();
+      return;
+    }
+    if (state.tasksOpen) {
+      renderTasks();
       return;
     }
     if (state.historyPageOpen) {
@@ -1674,7 +1674,17 @@
 
   function deleteTask(id) {
     var task = state.tasks.find(function (t) { return t.id === id; });
-    db.from("tasks").delete().eq("id", id).then(function (r) { if (r.error) console.error(r.error); });
+    db.from("tasks").delete().eq("id", id).select().then(function (r) {
+      if (r.error) {
+        console.error(r.error);
+        alert("تعذر حذف المهمة: " + (r.error.message || "وقع مشكل"));
+        return;
+      }
+      if (!r.data || r.data.length === 0) {
+        alert("المهمة ماتحذفاتش. من الأرجح خاصك تزيد صلاحية الحذف (delete policy) للأدمن فجدول tasks فSupabase.");
+        return;
+      }
+    });
     if (task && task.media && task.media.length) {
       try {
         var marker = "/" + TASK_MEDIA_BUCKET + "/";

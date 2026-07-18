@@ -246,6 +246,12 @@
   }
   .worker-pick-chip.picked { background: rgba(215,255,75,0.14); color: var(--amber); border-color: var(--amber); }
   .worker-pick-chip:disabled { opacity: 0.35; }
+  .worker-position-list { display: flex; flex-direction: column; gap: 6px; }
+  .worker-position-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--panelAlt); border: 1px solid var(--border); border-radius: 10px; padding: 7px 10px; }
+  .worker-position-name { font-size: 13px; font-weight: 700; }
+  .worker-position-toggle { display: flex; gap: 4px; }
+  .pos-btn { font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 999px; background: var(--bg); border: 1px solid var(--border); color: var(--textDim); }
+  .pos-btn.active { background: rgba(215,255,75,0.14); color: var(--amber); border-color: var(--amber); }
   .history-empty { font-size: 14px; text-align: center; padding: 16px 0; color: var(--textDim); }
   .history-item {
     width: 100%; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px;
@@ -2475,8 +2481,13 @@
   }
 
   // ---------- الجدول (استعمال الزمن) — الأدمن غير كيبدل، الكل كيشوف ----------
+  function normalizeShiftWorker(w) {
+    if (typeof w === "string") return { name: w, position: null };
+    return { name: w.name, position: w.position || null };
+  }
+
   function shiftRowToState(row) {
-    return { id: row.id, day: row.day_of_week, start: row.start_time, end: row.end_time, workers: row.workers || [] };
+    return { id: row.id, day: row.day_of_week, start: row.start_time, end: row.end_time, workers: (row.workers || []).map(normalizeShiftWorker) };
   }
 
   function shiftsForDay(day) {
@@ -2509,10 +2520,18 @@
   }
 
   function toggleNewShiftWorker(name) {
-    var pos = state.newShiftWorkers.indexOf(name);
-    if (pos !== -1) { state.newShiftWorkers.splice(pos, 1); render(); return; }
+    var idx = -1;
+    state.newShiftWorkers.forEach(function (w, i) { if (w.name === name) idx = i; });
+    if (idx !== -1) { state.newShiftWorkers.splice(idx, 1); render(); return; }
     if (state.newShiftWorkers.length >= 2) return;
-    state.newShiftWorkers.push(name);
+    var w = state.workers.filter(function (x) { return x.name === name; })[0];
+    var defaultPos = (w && w.worker_type === "polyvalent") ? "polyvalent" : "reception";
+    state.newShiftWorkers.push({ name: name, position: defaultPos });
+    render();
+  }
+
+  function setShiftWorkerPosition(name, position) {
+    state.newShiftWorkers.forEach(function (w) { if (w.name === name) w.position = position; });
     render();
   }
 
@@ -2565,7 +2584,10 @@
           html += '  <div class="shift-row">';
           html += '    <span class="shift-time mono">' + esc(s.start) + '&ndash;' + esc(s.end) + '</span>';
           html += '    <div class="shift-workers">';
-          s.workers.forEach(function (w) { html += '<span class="worker-chip">' + esc(w) + '</span>'; });
+          s.workers.forEach(function (w) {
+            var posLabel = w.position === "polyvalent" ? "بولفانو" : (w.position === "reception" ? "رسبسيو" : "");
+            html += '<span class="worker-chip">' + esc(w.name) + (posLabel ? ' &middot; ' + esc(posLabel) : '') + '</span>';
+          });
           html += '    </div>';
           if (state.myRole === "admin") {
             if (state.confirmDeleteShiftId === s.id) {
@@ -2590,11 +2612,24 @@
           html += '    </div>';
           html += '    <div class="worker-picker">';
           state.workers.filter(function (w) { return w.active; }).forEach(function (w) {
-            var picked = state.newShiftWorkers.indexOf(w.name) !== -1;
+            var picked = state.newShiftWorkers.some(function (x) { return x.name === w.name; });
             var disabled = !picked && state.newShiftWorkers.length >= 2;
             html += '<button type="button" class="worker-pick-chip' + (picked ? " picked" : "") + '" data-shift-worker="' + esc(w.name) + '"' + (disabled ? " disabled" : "") + '>' + esc(w.name) + '</button>';
           });
           html += '    </div>';
+          if (state.newShiftWorkers.length) {
+            html += '    <div class="worker-position-list">';
+            state.newShiftWorkers.forEach(function (w) {
+              html += '      <div class="worker-position-row">';
+              html += '        <span class="worker-position-name">' + esc(w.name) + '</span>';
+              html += '        <div class="worker-position-toggle">';
+              html += '          <button type="button" class="pos-btn' + (w.position === "reception" ? " active" : "") + '" data-shift-worker-pos="' + esc(w.name) + '" data-pos="reception">رسبسيو</button>';
+              html += '          <button type="button" class="pos-btn' + (w.position === "polyvalent" ? " active" : "") + '" data-shift-worker-pos="' + esc(w.name) + '" data-pos="polyvalent">بولفانو</button>';
+              html += '        </div>';
+              html += '      </div>';
+            });
+            html += '    </div>';
+          }
           html += '    <button class="confirm-btn" style="width:100%;" data-shift-add-confirm="' + day + '"' + (state.scheduleBusy ? " disabled" : "") + '>' + (state.scheduleBusy ? "جاري الإضافة..." : "إضافة الشيفت") + '</button>';
           if (state.scheduleError) html += '    <p class="auth-error">' + esc(state.scheduleError) + '</p>';
           html += '  </div>';
@@ -2626,6 +2661,9 @@
 
     document.querySelectorAll("[data-shift-worker]").forEach(function (btn) {
       btn.onclick = function () { toggleNewShiftWorker(btn.getAttribute("data-shift-worker")); };
+    });
+    document.querySelectorAll("[data-shift-worker-pos]").forEach(function (btn) {
+      btn.onclick = function () { setShiftWorkerPosition(btn.getAttribute("data-shift-worker-pos"), btn.getAttribute("data-pos")); };
     });
 
     document.querySelectorAll("[data-shift-add-confirm]").forEach(function (btn) {

@@ -378,13 +378,13 @@
     border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
   .note-photo-preview { position: relative; display: inline-block; margin-bottom: 8px; }
-  .note-photo-preview img { max-height: 90px; border-radius: 10px; display: block; }
+  .note-photo-preview img { border-radius: 10px; display: block; }
   .note-photo-loading { font-size: 13px; color: var(--textDim); padding: 8px 0; }
   .note-photo-remove {
     position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%;
     background: var(--red); color: #fff; border: none; display: flex; align-items: center; justify-content: center; padding: 0;
   }
-  .note-photo { max-width: 100%; border-radius: 10px; margin: 6px 0; display: block; }
+  .note-photo { border-radius: 10px; margin: 6px 0; display: block; }
   .note-del-btn { margin-top: 4px; }
   .note-confirm-del { margin-top: 4px; }
 
@@ -397,11 +397,18 @@
   .task-time { font-size: 11px; color: var(--textDim); white-space: nowrap; }
   .task-title { font-size: 15px; font-weight: 700; color: var(--text); word-break: break-word; }
   .task-note { font-size: 13px; color: var(--textDim); margin-top: 4px; white-space: pre-wrap; word-break: break-word; }
+  .task-actions { display: flex; flex-direction: column; align-items: stretch; gap: 6px; flex-shrink: 0; }
   .task-done-btn {
     flex-shrink: 0; display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700;
     padding: 7px 10px; border-radius: 9px; background: var(--panelAlt); border: 1px solid var(--border); color: var(--teal);
   }
+  .task-comment-btn {
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center; gap: 5px;
+    padding: 7px 10px; border-radius: 9px; background: var(--panelAlt); border: 1px solid var(--border); color: var(--textDim);
+  }
   .task-confirm-done { flex-shrink: 0; }
+  .task-del-btn { margin-top: 4px; }
+  .task-confirm-del { margin-top: 4px; }
   .task-add-row { display: none; flex-direction: column; gap: 8px; padding: 12px 16px; background: var(--bg); border-top: 1px solid var(--border); }
   .task-add-row.open { display: flex; }
   .task-add-row input, .task-add-row textarea {
@@ -425,21 +432,68 @@
   .task-media-btn.recording { background: var(--red); color: #fff; border-color: var(--red); animation: pulseGlow 1.4s ease-in-out infinite; }
   .task-record-label { font-size: 12px; font-weight: 700; color: var(--red); display: flex; align-items: center; gap: 6px; }
   .task-record-label::before { content: ""; width: 8px; height: 8px; border-radius: 999px; background: var(--red); animation: pulseGlow 1.4s ease-in-out infinite; }
+  .task-media-list { display: flex; flex-wrap: wrap; gap: 6px; }
   .task-media-preview { position: relative; display: inline-block; margin-bottom: 2px; }
-  .task-media-preview img, .task-media-preview video { max-height: 120px; max-width: 100%; border-radius: 10px; display: block; }
+  .task-media-preview img, .task-media-preview video { border-radius: 10px; display: block; }
   .task-media-preview audio { display: block; max-width: 220px; }
   .task-media-loading { font-size: 13px; color: var(--textDim); padding: 4px 0; }
   .task-media-remove {
-    position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%;
+    position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%;
     background: var(--red); color: #fff; border: none; display: flex; align-items: center; justify-content: center; padding: 0;
   }
-  .task-media { max-width: 100%; border-radius: 10px; margin: 8px 0 2px; display: block; }
-  video.task-media { max-height: 220px; }
-  audio.task-media { width: 100%; max-width: 260px; }
+  .task-media { border-radius: 10px; display: block; }
+  audio.task-media { width: 100%; max-width: 260px; margin: 6px 0; }
+
+  /* صفحة المناقشة (تعليقات المهمة) */
+  .comments-list { padding: 0 16px; }
+  .comment-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+  .comment-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; gap: 8px; }
+  .comment-author { font-size: 12px; font-weight: 800; color: var(--amber); }
+  .comment-time { font-size: 11px; color: var(--textDim); }
+  .comment-text { font-size: 15px; line-height: 1.5; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+  .comment-media { border-radius: 10px; display: block; margin: 4px 0; }
+  audio.comment-media { width: 100%; max-width: 260px; }
+  .comment-media.media-thumb { width: auto; height: auto; max-width: 220px; max-height: 220px; object-fit: cover; }
+  .comment-compose { padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); background: var(--bg); border-top: 1px solid var(--border); }
+  .comment-compose-row { display: flex; align-items: flex-end; gap: 8px; }
+  .comment-compose textarea {
+    flex: 1; border-radius: 12px; padding: 10px 12px; font-size: 15px; resize: none;
+    background: var(--panelAlt); border: 1px solid var(--border); color: var(--text); outline: none;
+    max-height: 100px; font-family: inherit;
+  }
+  .comment-compose textarea:focus { border-color: var(--amber); }
+  .comment-media-preview { position: relative; display: inline-block; margin-bottom: 8px; }
+  .comment-media-preview img, .comment-media-preview video { border-radius: 10px; display: block; max-width: 160px; }
+  .comment-media-preview audio { display: block; max-width: 220px; }
+  .comment-media-loading { font-size: 13px; color: var(--textDim); padding: 8px 0; }
+
+  /* صور وفيديوهات صغيرة (thumbnail) — كتكبر بالضغط عليها */
+  .media-thumb { width: 58px; height: 58px; object-fit: cover; flex-shrink: 0; }
+
+  /* media lightbox — تكبير الصور والفيديوهات بضغطة */
+  .task-media, .task-media-preview img, .task-media-preview video,
+  .note-photo, .note-photo-preview img,
+  .comment-media, .comment-media-preview img, .comment-media-preview video { cursor: zoom-in; }
+  .media-lightbox {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 999;
+    display: none; align-items: center; justify-content: center; padding: 24px;
+  }
+  .media-lightbox.open { display: flex; }
+  .media-lightbox-content { max-width: 100%; max-height: 100%; display: flex; align-items: center; justify-content: center; }
+  .media-lightbox-content img, .media-lightbox-content video { max-width: 100%; max-height: 85vh; border-radius: 12px; display: block; }
+  .media-lightbox-close {
+    position: absolute; top: 16px; left: 16px; width: 40px; height: 40px; border-radius: 999px;
+    background: var(--panelAlt); border: 1px solid var(--border); color: var(--text); font-size: 18px;
+    display: flex; align-items: center; justify-content: center; z-index: 1000;
+  }
 </style>
 </head>
 <body>
 <div id="app"></div>
+<div id="mediaLightbox" class="media-lightbox">
+  <button id="mediaLightboxClose" class="media-lightbox-close" aria-label="إغلاق">✕</button>
+  <div id="mediaLightboxContent" class="media-lightbox-content"></div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
@@ -530,11 +584,20 @@
     newTaskTitle: "",
     newTaskNote: "",
     confirmDoneTaskId: null,
-    newTaskMediaUrl: null,
-    newTaskMediaType: null, // "photo" | "video" | "audio"
+    confirmDeleteTaskId: null,
+    newTaskMedia: [], // [{ url, type }] — يقدر يزيد عدة مرفقات
     newTaskMediaUploading: false,
     taskRecording: false,
     taskRecordSeconds: 0,
+
+    commentsOpen: false,
+    commentsTaskId: null,
+    comments: [],
+    commentDraft: "",
+    commentMediaUrl: null,
+    commentMediaType: null,
+    commentMediaUploading: false,
+    commentRecording: false,
 
     moreMenuOpen: false,
   };
@@ -544,6 +607,7 @@
   var unsubDirectory = null;
   var unsubNotes = null;
   var unsubTasks = null;
+  var unsubComments = null;
 
   function notesSeenKey() { return "hasbatSalla_notesSeen_" + (state.myUid || ""); }
   function getNotesLastSeen() {
@@ -717,7 +781,8 @@
     more: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>',
     video: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>',
     mic: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>',
-    stop: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>'
+    stop: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>',
+    chat: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>'
   };
   function icon(name, size, weight) {
     return ICONS[name].replace(/{s}/g, size || 20).replace(/{w}/g, weight || 2);
@@ -752,6 +817,10 @@
     }
     if (state.tasksOpen) {
       renderTasks();
+      return;
+    }
+    if (state.commentsOpen) {
+      renderTaskComments();
       return;
     }
     if (state.historyPageOpen) {
@@ -1100,7 +1169,7 @@
         html += '  <button class="note-check" data-id="' + esc(n.id) + '" aria-label="تم الإنجاز">' + (n.done ? icon("check", 16, 3) : '') + '</button>';
         html += '  <div class="note-body">';
         html += '    <div class="note-meta"><span class="note-author">' + esc(n.author) + '</span><span class="note-time">' + esc(timeAgo(n.createdAt)) + '</span></div>';
-        if (n.photoUrl) html += '    <img class="note-photo" src="' + esc(n.photoUrl) + '" alt="صورة" />';
+        if (n.photoUrl) html += '    <img class="note-photo media-thumb" src="' + esc(n.photoUrl) + '" alt="صورة" />';
         if (n.text) html += '    <div class="note-text">' + esc(n.text) + '</div>';
         if (n.author === state.myName) {
           if (state.confirmDeleteNoteId === n.id) {
@@ -1124,7 +1193,7 @@
       if (state.notePhotoUploading) {
         html += '    <div class="note-photo-loading">جاري رفع الصورة...</div>';
       } else {
-        html += '    <img src="' + esc(state.notePhotoUrl) + '" />';
+        html += '    <img class="media-thumb" src="' + esc(state.notePhotoUrl) + '" />';
         html += '    <button id="notePhotoRemove" class="note-photo-remove" aria-label="حذف الصورة">' + icon("x", 14, 3) + '</button>';
       }
       html += '  </div>';
@@ -1287,16 +1356,29 @@
         html += '    <div class="task-meta"><span class="task-author">' + esc(t.createdByName) + '</span><span class="task-time">' + esc(timeAgo(t.createdAt)) + '</span></div>';
         html += '    <div class="task-title">' + esc(t.title) + '</div>';
         if (t.note) html += '    <div class="task-note">' + esc(t.note) + '</div>';
-        html += renderTaskMedia(t.mediaUrl, t.mediaType);
-        html += '  </div>';
-        if (state.confirmDoneTaskId === t.id) {
-          html += '  <div class="confirm-del task-confirm-done">';
-          html += '    <button class="yes" data-task-done-confirm="' + esc(t.id) + '">' + icon("check", 13) + ' إنهاء</button>';
-          html += '    <button class="no" data-task-done-cancel="' + esc(t.id) + '">' + icon("x", 13) + '</button>';
-          html += '  </div>';
-        } else {
-          html += '  <button class="task-done-btn" data-task-done-ask="' + esc(t.id) + '">' + icon("check", 15, 2.5) + ' إنهاء</button>';
+        html += renderTaskMediaList(t.media);
+        if (state.myRole === "admin") {
+          if (state.confirmDeleteTaskId === t.id) {
+            html += '    <div class="confirm-del task-confirm-del">';
+            html += '      <button class="yes" data-task-del-confirm="' + esc(t.id) + '">' + icon("check", 13) + ' حذف</button>';
+            html += '      <button class="no" data-task-del-cancel="' + esc(t.id) + '">' + icon("x", 13) + '</button>';
+            html += '    </div>';
+          } else {
+            html += '    <button class="del-btn task-del-btn" data-task-del-ask="' + esc(t.id) + '" aria-label="حذف المهمة">' + icon("trash", 15) + '</button>';
+          }
         }
+        html += '  </div>';
+        html += '  <div class="task-actions">';
+        html += '    <button class="task-comment-btn" data-task-comments-open="' + esc(t.id) + '" aria-label="مناقشة">' + icon("chat", 15, 2.2) + '</button>';
+        if (state.confirmDoneTaskId === t.id) {
+          html += '    <div class="confirm-del task-confirm-done">';
+          html += '      <button class="yes" data-task-done-confirm="' + esc(t.id) + '">' + icon("check", 13) + ' إنهاء</button>';
+          html += '      <button class="no" data-task-done-cancel="' + esc(t.id) + '">' + icon("x", 13) + '</button>';
+          html += '    </div>';
+        } else {
+          html += '    <button class="task-done-btn" data-task-done-ask="' + esc(t.id) + '">' + icon("check", 15, 2.5) + ' إنهاء</button>';
+        }
+        html += '  </div>';
         html += '</div>';
       });
     }
@@ -1306,15 +1388,18 @@
     html += '  <input id="newTaskTitleInput" type="text" placeholder="عنوان المهمة..." value="' + esc(state.newTaskTitle) + '" />';
     html += '  <textarea id="newTaskNoteInput" placeholder="ملاحظة (اختياري)" rows="1">' + esc(state.newTaskNote) + '</textarea>';
 
-    if (state.newTaskMediaUploading || state.newTaskMediaUrl) {
-      html += '  <div class="task-media-preview">';
+    if (state.newTaskMedia.length || state.newTaskMediaUploading) {
+      html += '  <div class="task-media-list">';
+      state.newTaskMedia.forEach(function (m, idx) {
+        html += '    <div class="task-media-preview">';
+        if (m.type === "photo") html += '      <img class="media-thumb" src="' + esc(m.url) + '" />';
+        else if (m.type === "video") html += '      <video class="media-thumb" src="' + esc(m.url) + '" muted playsinline preload="metadata"></video>';
+        else if (m.type === "audio") html += '      <audio src="' + esc(m.url) + '" controls></audio>';
+        html += '      <button class="task-media-remove" data-task-media-remove="' + idx + '" aria-label="حذف المرفق">' + icon("x", 14, 3) + '</button>';
+        html += '    </div>';
+      });
       if (state.newTaskMediaUploading) {
         html += '    <div class="task-media-loading">جاري رفع الملف...</div>';
-      } else {
-        if (state.newTaskMediaType === "photo") html += '    <img src="' + esc(state.newTaskMediaUrl) + '" />';
-        else if (state.newTaskMediaType === "video") html += '    <video src="' + esc(state.newTaskMediaUrl) + '" controls playsinline></video>';
-        else if (state.newTaskMediaType === "audio") html += '    <audio src="' + esc(state.newTaskMediaUrl) + '" controls></audio>';
-        html += '    <button id="taskMediaRemove" class="task-media-remove" aria-label="حذف المرفق">' + icon("x", 14, 3) + '</button>';
       }
       html += '  </div>';
     }
@@ -1325,10 +1410,11 @@
     html += '  <div class="task-media-btns">';
     html += '    <input type="file" id="taskPhotoInput" accept="image/*" capture="environment" style="display:none" />';
     html += '    <input type="file" id="taskVideoInput" accept="video/*" capture="environment" style="display:none" />';
-    var mediaBusy = state.newTaskMediaUploading || !!state.newTaskMediaUrl;
-    html += '    <button id="taskPhotoBtn" class="task-media-btn" aria-label="إرفاق صورة"' + (mediaBusy || state.taskRecording ? " disabled" : "") + '>' + icon("camera", 18) + '</button>';
-    html += '    <button id="taskVideoBtn" class="task-media-btn" aria-label="إرفاق فيديو"' + (mediaBusy || state.taskRecording ? " disabled" : "") + '>' + icon("video", 18) + '</button>';
-    html += '    <button id="taskVoiceBtn" class="task-media-btn' + (state.taskRecording ? " recording" : "") + '" aria-label="' + (state.taskRecording ? "إيقاف التسجيل" : "تسجيل فوكال") + '"' + (mediaBusy && !state.taskRecording ? " disabled" : "") + '>' + icon(state.taskRecording ? "stop" : "mic", 18) + '</button>';
+    var mediaBusy = state.newTaskMediaUploading;
+    var mediaFull = state.newTaskMedia.length >= TASK_MEDIA_MAX;
+    html += '    <button id="taskPhotoBtn" class="task-media-btn" aria-label="إرفاق صورة"' + (mediaBusy || state.taskRecording || mediaFull ? " disabled" : "") + '>' + icon("camera", 18) + '</button>';
+    html += '    <button id="taskVideoBtn" class="task-media-btn" aria-label="إرفاق فيديو"' + (mediaBusy || state.taskRecording || mediaFull ? " disabled" : "") + '>' + icon("video", 18) + '</button>';
+    html += '    <button id="taskVoiceBtn" class="task-media-btn' + (state.taskRecording ? " recording" : "") + '" aria-label="' + (state.taskRecording ? "إيقاف التسجيل" : "تسجيل فوكال") + '"' + ((mediaBusy && !state.taskRecording) || (mediaFull && !state.taskRecording) ? " disabled" : "") + '>' + icon(state.taskRecording ? "stop" : "mic", 18) + '</button>';
     html += '    <div style="flex:1"></div>';
     html += '    <button id="confirmAddTaskBtn" class="task-add-confirm"' + (state.newTaskTitle.trim() ? "" : " disabled") + '>' + icon("check", 16, 2.5) + ' إنشاء</button>';
     html += '  </div>';
@@ -1395,14 +1481,13 @@
         else startTaskRecording();
       };
     }
-    var mediaRemove = document.getElementById("taskMediaRemove");
-    if (mediaRemove) {
-      mediaRemove.onclick = function () {
-        state.newTaskMediaUrl = null;
-        state.newTaskMediaType = null;
+    document.querySelectorAll("[data-task-media-remove]").forEach(function (btn) {
+      btn.onclick = function () {
+        var idx = parseInt(btn.getAttribute("data-task-media-remove"), 10);
+        state.newTaskMedia.splice(idx, 1);
         render();
       };
-    }
+    });
 
     document.querySelectorAll("[data-task-done-ask]").forEach(function (btn) {
       btn.onclick = function () { state.confirmDoneTaskId = btn.getAttribute("data-task-done-ask"); render(); };
@@ -1418,19 +1503,51 @@
         render();
       };
     });
+
+    document.querySelectorAll("[data-task-comments-open]").forEach(function (btn) {
+      btn.onclick = function () { openTaskComments(btn.getAttribute("data-task-comments-open")); };
+    });
+
+    document.querySelectorAll("[data-task-del-ask]").forEach(function (btn) {
+      btn.onclick = function () { state.confirmDeleteTaskId = btn.getAttribute("data-task-del-ask"); render(); };
+    });
+    document.querySelectorAll("[data-task-del-cancel]").forEach(function (btn) {
+      btn.onclick = function () { state.confirmDeleteTaskId = null; render(); };
+    });
+    document.querySelectorAll("[data-task-del-confirm]").forEach(function (btn) {
+      btn.onclick = function () {
+        var id = btn.getAttribute("data-task-del-confirm");
+        state.confirmDeleteTaskId = null;
+        deleteTask(id);
+        render();
+      };
+    });
   }
 
-  function renderTaskMedia(url, type) {
-    if (!url) return "";
-    if (type === "photo") return '    <img class="task-media" src="' + esc(url) + '" alt="صورة" />';
-    if (type === "video") return '    <video class="task-media" src="' + esc(url) + '" controls playsinline></video>';
-    if (type === "audio") return '    <audio class="task-media" src="' + esc(url) + '" controls></audio>';
-    return "";
+  function renderTaskMediaList(media) {
+    if (!media || !media.length) return "";
+    var thumbs = media.filter(function (m) { return m.type === "photo" || m.type === "video"; });
+    var audios = media.filter(function (m) { return m.type === "audio"; });
+    var html = "";
+    if (thumbs.length) {
+      html += '    <div class="task-media-list">';
+      thumbs.forEach(function (m) {
+        if (m.type === "photo") html += '<img class="task-media media-thumb" src="' + esc(m.url) + '" alt="صورة" />';
+        else html += '<video class="task-media media-thumb" src="' + esc(m.url) + '" muted playsinline preload="metadata"></video>';
+      });
+      html += '    </div>';
+    }
+    audios.forEach(function (m) {
+      html += '    <audio class="task-media" src="' + esc(m.url) + '" controls></audio>';
+    });
+    return html;
   }
 
-  // ---------- مرفقات المهام: صورة / فيديو / فوكال ----------
+  // ---------- مرفقات المهام: صورة / فيديو / فوكال (يقدر يزيد عدة مرفقات) ----------
+  var TASK_MEDIA_MAX = 4; // أقصى عدد مرفقات فكل مهمة
   function uploadTaskMedia(blobOrFile, type, ext, contentType) {
     if (!supabaseClient) { alert("خدمة رفع الملفات غير متوفرة حاليا"); return; }
+    if (state.newTaskMedia.length >= TASK_MEDIA_MAX) { alert("وصلتي للحد الأقصى ديال المرفقات (" + TASK_MEDIA_MAX + ")"); return; }
     state.newTaskMediaUploading = true;
     render();
     var fileName = "task_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8) + "." + ext;
@@ -1438,8 +1555,7 @@
       .then(function (result) {
         if (result.error) throw result.error;
         var pub = supabaseClient.storage.from(TASK_MEDIA_BUCKET).getPublicUrl(fileName);
-        state.newTaskMediaUrl = pub.data.publicUrl;
-        state.newTaskMediaType = type;
+        state.newTaskMedia.push({ url: pub.data.publicUrl, type: type });
         state.newTaskMediaUploading = false;
         render();
       })
@@ -1452,6 +1568,7 @@
   }
 
   function uploadTaskPhoto(file) {
+    if (state.newTaskMedia.length >= TASK_MEDIA_MAX) { alert("وصلتي للحد الأقصى ديال المرفقات (" + TASK_MEDIA_MAX + ")"); return; }
     state.newTaskMediaUploading = true;
     render();
     compressImageFile(file, 1000, 0.65, function (blob) {
@@ -1466,6 +1583,7 @@
   }
 
   function uploadTaskVideo(file) {
+    if (state.newTaskMedia.length >= TASK_MEDIA_MAX) { alert("وصلتي للحد الأقصى ديال المرفقات (" + TASK_MEDIA_MAX + ")"); return; }
     if (file.size > TASK_VIDEO_MAX_BYTES) {
       alert("الفيديو كبير بزاف (الحد الأقصى 25 ميغا)، حاول فيديو أقصر");
       return;
@@ -1479,6 +1597,7 @@
   var taskMediaChunks = [];
 
   function startTaskRecording() {
+    if (state.newTaskMedia.length >= TASK_MEDIA_MAX) { alert("وصلتي للحد الأقصى ديال المرفقات (" + TASK_MEDIA_MAX + ")"); return; }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === "undefined") {
       alert("التسجيل الصوتي غير مدعوم فهاد المتصفح");
       return;
@@ -1527,12 +1646,10 @@
     var title = state.newTaskTitle.trim();
     if (!title) return;
     var note = state.newTaskNote.trim();
-    var mediaUrl = state.newTaskMediaUrl;
-    var mediaType = state.newTaskMediaType;
+    var media = state.newTaskMedia.slice();
     state.newTaskTitle = "";
     state.newTaskNote = "";
-    state.newTaskMediaUrl = null;
-    state.newTaskMediaType = null;
+    state.newTaskMedia = [];
     state.taskAddOpen = false;
     var taskData = {
       title: title,
@@ -1541,7 +1658,7 @@
       created_by_name: state.myName,
       status: "open"
     };
-    if (mediaUrl) { taskData.media_url = mediaUrl; taskData.media_type = mediaType; }
+    if (media.length) taskData.media = media;
     db.from("tasks").insert(taskData).then(function (r) { if (r.error) console.error(r.error); });
     render();
   }
@@ -1555,11 +1672,29 @@
     }).eq("id", id).then(function (r) { if (r.error) console.error(r.error); });
   }
 
+  function deleteTask(id) {
+    var task = state.tasks.find(function (t) { return t.id === id; });
+    db.from("tasks").delete().eq("id", id).then(function (r) { if (r.error) console.error(r.error); });
+    if (task && task.media && task.media.length) {
+      try {
+        var marker = "/" + TASK_MEDIA_BUCKET + "/";
+        var fileNames = [];
+        task.media.forEach(function (m) {
+          var idx = m.url.indexOf(marker);
+          if (idx !== -1) fileNames.push(m.url.slice(idx + marker.length).split("?")[0]);
+        });
+        if (fileNames.length) {
+          supabaseClient.storage.from(TASK_MEDIA_BUCKET).remove(fileNames).then(function (r) { if (r.error) console.error(r.error); });
+        }
+      } catch (e) { console.error(e); }
+    }
+  }
+
   function taskRowToState(row) {
     return {
       id: row.id, title: row.title, note: row.note,
       createdByName: row.created_by_name, createdAt: row.created_at, status: row.status,
-      mediaUrl: row.media_url, mediaType: row.media_type
+      media: row.media || []
     };
   }
 
@@ -1577,6 +1712,289 @@
     unsubTasks = db.channel("tasks_changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, function () { loadTasks(); })
       .subscribe();
+  }
+
+  // ---------- صفحة المناقشة (تعليقات المهمة) ----------
+  function openTaskComments(taskId) {
+    state.commentsOpen = true;
+    state.commentsTaskId = taskId;
+    state.comments = [];
+    state.commentDraft = "";
+    state.commentMediaUrl = null;
+    state.commentMediaType = null;
+    state.commentMediaUploading = false;
+    state.commentRecording = false;
+    render();
+    subscribeComments(taskId);
+  }
+
+  function closeTaskComments() {
+    state.commentsOpen = false;
+    state.commentsTaskId = null;
+    if (unsubComments) { unsubComments.unsubscribe(); unsubComments = null; }
+    render();
+  }
+
+  function commentRowToState(row) {
+    return {
+      id: row.id, taskId: row.task_id, authorName: row.author_name,
+      message: row.message, mediaUrl: row.media_url, mediaType: row.media_type,
+      createdAt: row.created_at
+    };
+  }
+
+  function loadComments(taskId) {
+    return db.from("task_comments").select("*").eq("task_id", taskId).order("created_at", { ascending: true }).limit(500).then(function (res) {
+      if (res.error) { console.error(res.error); return; }
+      state.comments = res.data.map(commentRowToState);
+      render();
+      scrollCommentsToBottom();
+    });
+  }
+
+  function subscribeComments(taskId) {
+    if (unsubComments) { unsubComments.unsubscribe(); unsubComments = null; }
+    loadComments(taskId);
+    unsubComments = db.channel("task_comments_" + taskId)
+      .on("postgres_changes", { event: "*", schema: "public", table: "task_comments", filter: "task_id=eq." + taskId }, function () { loadComments(taskId); })
+      .subscribe();
+  }
+
+  function scrollCommentsToBottom() {
+    requestAnimationFrame(function () {
+      var list = document.querySelector(".comments-list");
+      if (list) list.scrollTop = list.scrollHeight;
+    });
+  }
+
+  function renderTaskComments() {
+    var task = state.tasks.find(function (t) { return t.id === state.commentsTaskId; }) || {};
+    var html = "";
+    html += '<div class="header">';
+    html += '  <div class="header-row">';
+    html += '    <div><h1>مناقشة</h1><p class="sub">' + esc(task.title || "") + '</p></div>';
+    html += '    <button id="commentsBackBtn" class="helper-back-btn" aria-label="رجوع">' + icon("x", 20, 2.5) + '</button>';
+    html += '  </div>';
+    html += '</div>';
+
+    html += '<div class="list comments-list">';
+    if (state.comments.length === 0) {
+      html += '<div class="empty">';
+      html += '  <div class="empty-circle">' + icon("chat", 22) + '</div>';
+      html += '  <p class="title">مازال ما كاين حتى تعليق</p>';
+      html += '  <p class="sub">اكتب أول رسالة تحت</p>';
+      html += '</div>';
+    } else {
+      state.comments.forEach(function (c) {
+        html += '<div class="comment-card">';
+        html += '  <div class="comment-meta"><span class="comment-author">' + esc(c.authorName) + '</span><span class="comment-time">' + esc(timeAgo(c.createdAt)) + '</span></div>';
+        if (c.mediaUrl) {
+          if (c.mediaType === "photo") html += '  <img class="comment-media media-thumb" src="' + esc(c.mediaUrl) + '" alt="صورة" />';
+          else if (c.mediaType === "video") html += '  <video class="comment-media media-thumb" src="' + esc(c.mediaUrl) + '" muted playsinline preload="metadata"></video>';
+          else if (c.mediaType === "audio") html += '  <audio class="comment-media" src="' + esc(c.mediaUrl) + '" controls></audio>';
+        }
+        if (c.message) html += '  <div class="comment-text">' + esc(c.message) + '</div>';
+        html += '</div>';
+      });
+    }
+    html += '</div>';
+
+    html += '<div class="comment-compose">';
+    if (state.commentMediaUploading || state.commentMediaUrl) {
+      html += '  <div class="comment-media-preview">';
+      if (state.commentMediaUploading) {
+        html += '    <div class="comment-media-loading">جاري رفع الملف...</div>';
+      } else {
+        if (state.commentMediaType === "photo") html += '    <img src="' + esc(state.commentMediaUrl) + '" />';
+        else if (state.commentMediaType === "video") html += '    <video src="' + esc(state.commentMediaUrl) + '" muted playsinline preload="metadata"></video>';
+        else html += '    <audio src="' + esc(state.commentMediaUrl) + '" controls></audio>';
+        html += '    <button id="commentMediaRemove" class="note-photo-remove" aria-label="حذف المرفق">' + icon("x", 14, 3) + '</button>';
+      }
+      html += '  </div>';
+    }
+    if (state.commentRecording) {
+      html += '  <div class="task-record-label">جاري تسجيل الفوكال...</div>';
+    }
+    html += '  <div class="comment-compose-row">';
+    html += '    <input type="file" id="commentPhotoInput" accept="image/*" capture="environment" style="display:none" />';
+    html += '    <input type="file" id="commentVideoInput" accept="video/*" capture="environment" style="display:none" />';
+    var cBusy = state.commentMediaUploading;
+    var cHasMedia = !!state.commentMediaUrl;
+    html += '    <button id="commentPhotoBtn" class="task-media-btn" aria-label="إرفاق صورة"' + (cBusy || state.commentRecording || cHasMedia ? " disabled" : "") + '>' + icon("camera", 18) + '</button>';
+    html += '    <button id="commentVideoBtn" class="task-media-btn" aria-label="إرفاق فيديو"' + (cBusy || state.commentRecording || cHasMedia ? " disabled" : "") + '>' + icon("video", 18) + '</button>';
+    html += '    <button id="commentVoiceBtn" class="task-media-btn' + (state.commentRecording ? " recording" : "") + '" aria-label="' + (state.commentRecording ? "إيقاف التسجيل" : "تسجيل فوكال") + '"' + ((cBusy && !state.commentRecording) || (cHasMedia && !state.commentRecording) ? " disabled" : "") + '>' + icon(state.commentRecording ? "stop" : "mic", 18) + '</button>';
+    html += '    <textarea id="commentDraftInput" placeholder="اكتب رسالة..." rows="1">' + esc(state.commentDraft) + '</textarea>';
+    html += '    <button id="commentSendBtn" class="note-send-btn"' + ((state.commentDraft.trim() || state.commentMediaUrl) ? "" : " disabled") + '>' + icon("send", 18) + '</button>';
+    html += '  </div>';
+    html += '</div>';
+
+    root.innerHTML = html;
+    scrollCommentsToBottom();
+
+    var backBtn = document.getElementById("commentsBackBtn");
+    if (backBtn) backBtn.onclick = closeTaskComments;
+
+    var draft = document.getElementById("commentDraftInput");
+    if (draft) {
+      draft.oninput = function (e) {
+        state.commentDraft = e.target.value;
+        e.target.style.height = "auto";
+        e.target.style.height = Math.min(e.target.scrollHeight, 100) + "px";
+        var sendBtn = document.getElementById("commentSendBtn");
+        if (sendBtn) sendBtn.disabled = !(state.commentDraft.trim() || state.commentMediaUrl);
+      };
+    }
+    var sendBtn = document.getElementById("commentSendBtn");
+    if (sendBtn) sendBtn.onclick = sendComment;
+
+    var photoBtn = document.getElementById("commentPhotoBtn");
+    var photoInput = document.getElementById("commentPhotoInput");
+    if (photoBtn && photoInput) {
+      photoBtn.onclick = function () { photoInput.click(); };
+      photoInput.onchange = function (e) {
+        var file = e.target.files && e.target.files[0];
+        if (file) uploadCommentPhoto(file);
+        photoInput.value = "";
+      };
+    }
+    var videoBtn = document.getElementById("commentVideoBtn");
+    var videoInput = document.getElementById("commentVideoInput");
+    if (videoBtn && videoInput) {
+      videoBtn.onclick = function () { videoInput.click(); };
+      videoInput.onchange = function (e) {
+        var file = e.target.files && e.target.files[0];
+        if (file) uploadCommentVideo(file);
+        videoInput.value = "";
+      };
+    }
+    var voiceBtn = document.getElementById("commentVoiceBtn");
+    if (voiceBtn) {
+      voiceBtn.onclick = function () {
+        if (state.commentRecording) stopCommentRecording();
+        else startCommentRecording();
+      };
+    }
+    var mediaRemove = document.getElementById("commentMediaRemove");
+    if (mediaRemove) {
+      mediaRemove.onclick = function () {
+        state.commentMediaUrl = null;
+        state.commentMediaType = null;
+        render();
+      };
+    }
+  }
+
+  function sendComment() {
+    var text = state.commentDraft.trim();
+    var mediaUrl = state.commentMediaUrl;
+    var mediaType = state.commentMediaType;
+    if (!text && !mediaUrl) return;
+    state.commentDraft = "";
+    state.commentMediaUrl = null;
+    state.commentMediaType = null;
+    var payload = {
+      task_id: state.commentsTaskId,
+      author: state.myUid,
+      author_name: state.myName,
+      message: text || null,
+      media_url: mediaUrl || null,
+      media_type: mediaType || null
+    };
+    db.from("task_comments").insert(payload).then(function (r) { if (r.error) console.error(r.error); });
+    render();
+  }
+
+  function uploadCommentMedia(blobOrFile, type, ext, contentType) {
+    state.commentMediaUploading = true;
+    render();
+    var fileName = "comment_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8) + "." + ext;
+    supabaseClient.storage.from(TASK_MEDIA_BUCKET).upload(fileName, blobOrFile, { contentType: contentType })
+      .then(function (result) {
+        if (result.error) throw result.error;
+        var pub = supabaseClient.storage.from(TASK_MEDIA_BUCKET).getPublicUrl(fileName);
+        state.commentMediaUrl = pub.data.publicUrl;
+        state.commentMediaType = type;
+        state.commentMediaUploading = false;
+        render();
+      })
+      .catch(function (err) {
+        console.error(err);
+        state.commentMediaUploading = false;
+        alert("تعذر رفع الملف، حاول مرة أخرى");
+        render();
+      });
+  }
+
+  function uploadCommentPhoto(file) {
+    state.commentMediaUploading = true;
+    render();
+    compressImageFile(file, 1000, 0.65, function (blob) {
+      if (!blob) {
+        state.commentMediaUploading = false;
+        alert("تعذر قراءة الصورة");
+        render();
+        return;
+      }
+      uploadCommentMedia(blob, "photo", "jpg", "image/jpeg");
+    });
+  }
+
+  function uploadCommentVideo(file) {
+    if (file.size > TASK_VIDEO_MAX_BYTES) {
+      alert("الفيديو كبير بزاف (الحد الأقصى 25 ميغا)، حاول فيديو أقصر");
+      return;
+    }
+    var ext = "mp4";
+    if (file.name && file.name.indexOf(".") !== -1) ext = file.name.split(".").pop().toLowerCase();
+    uploadCommentMedia(file, "video", ext, file.type || "video/mp4");
+  }
+
+  var commentMediaRecorder = null;
+  var commentMediaChunks = [];
+
+  function startCommentRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === "undefined") {
+      alert("التسجيل الصوتي غير مدعوم فهاد المتصفح");
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      commentMediaChunks = [];
+      var mimeType = "";
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported) {
+        if (MediaRecorder.isTypeSupported("audio/webm")) mimeType = "audio/webm";
+        else if (MediaRecorder.isTypeSupported("audio/mp4")) mimeType = "audio/mp4";
+      }
+      try {
+        commentMediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream);
+      } catch (e) {
+        console.error(e);
+        alert("تعذر بدء التسجيل");
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        return;
+      }
+      commentMediaRecorder.ondataavailable = function (e) { if (e.data && e.data.size > 0) commentMediaChunks.push(e.data); };
+      commentMediaRecorder.onstop = function () {
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        var outType = commentMediaRecorder.mimeType || "audio/webm";
+        var blob = new Blob(commentMediaChunks, { type: outType });
+        var ext = outType.indexOf("mp4") !== -1 ? "m4a" : "webm";
+        uploadCommentMedia(blob, "audio", ext, outType);
+      };
+      commentMediaRecorder.start();
+      state.commentRecording = true;
+      render();
+    }).catch(function (err) {
+      console.error(err);
+      alert("تعذر الوصول للميكروفون، تأكد من السماح بالإذن");
+    });
+  }
+
+  function stopCommentRecording() {
+    if (commentMediaRecorder && state.commentRecording) {
+      commentMediaRecorder.stop();
+      state.commentRecording = false;
+      render();
+    }
   }
 
   function renderHistoryPage() {
@@ -2326,6 +2744,7 @@
     if (unsubDirectory) { unsubDirectory.unsubscribe(); unsubDirectory = null; }
     if (unsubNotes) { unsubNotes.unsubscribe(); unsubNotes = null; }
     if (unsubTasks) { unsubTasks.unsubscribe(); unsubTasks = null; }
+    if (unsubComments) { unsubComments.unsubscribe(); unsubComments = null; }
   }
 
   function onSignedIn(user) {
@@ -2374,6 +2793,46 @@
     }
     onSignedIn(session.user);
   });
+
+  // ---------- media lightbox: تكبير الصور والفيديوهات بضغطة ----------
+  function openMediaLightbox(url, tag) {
+    var overlay = document.getElementById("mediaLightbox");
+    var content = document.getElementById("mediaLightboxContent");
+    if (!overlay || !content || !url) return;
+    var html = "";
+    if (tag === "img") html = '<img src="' + esc(url) + '" alt="" />';
+    else if (tag === "video") html = '<video src="' + esc(url) + '" controls autoplay playsinline></video>';
+    else return;
+    content.innerHTML = html;
+    overlay.classList.add("open");
+  }
+  function closeMediaLightbox() {
+    var overlay = document.getElementById("mediaLightbox");
+    var content = document.getElementById("mediaLightboxContent");
+    if (content) {
+      var media = content.querySelector("video, audio");
+      if (media) { try { media.pause(); } catch (e) {} }
+      content.innerHTML = "";
+    }
+    if (overlay) overlay.classList.remove("open");
+  }
+  document.addEventListener("click", function (e) {
+    var el = e.target.closest && e.target.closest(
+      ".task-media, .task-media-preview img, .task-media-preview video, .note-photo, .note-photo-preview img, .comment-media, .comment-media-preview img, .comment-media-preview video"
+    );
+    if (!el) return;
+    var tag = el.tagName.toLowerCase();
+    if (tag !== "img" && tag !== "video") return;
+    openMediaLightbox(el.getAttribute("src"), tag);
+  });
+  var lightboxCloseBtn = document.getElementById("mediaLightboxClose");
+  if (lightboxCloseBtn) lightboxCloseBtn.onclick = closeMediaLightbox;
+  var lightboxOverlay = document.getElementById("mediaLightbox");
+  if (lightboxOverlay) {
+    lightboxOverlay.addEventListener("click", function (e) {
+      if (e.target === lightboxOverlay) closeMediaLightbox();
+    });
+  }
 
   // ---------- init ----------
   document.addEventListener("pointerdown", function (e) {

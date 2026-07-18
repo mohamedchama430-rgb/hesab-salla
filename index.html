@@ -154,6 +154,10 @@
     position: relative; border-radius: 14px; padding: 12px; margin-bottom: 12px;
     background: var(--panel); border: 1px solid var(--border);
   }
+  .poly-menu-btn {
+    background: #1B2A4D; border: 1px solid #2E4680;
+  }
+  .poly-menu-btn:active { background: #22355F; }
   .card .rivet { position: absolute; width: 6px; height: 6px; border-radius: 999px; top: 6px; background: var(--borderSoft); }
   .card .rivet.r { right: 6px; } .card .rivet.l { left: 6px; }
   .card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; padding: 0 4px; }
@@ -839,9 +843,9 @@
     html += '</div>';
 
     html += '<div style="padding:16px;display:flex;flex-direction:column;gap:12px;">';
-    html += '  <button data-poly-nav="notes" class="card" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("note", 20, 2) + '<span style="flex:1;font-weight:700;">الملاحظات</span>' + (state.hasUnreadNotes ? '<span class="notif-dot" style="position:static;border:none;"></span>' : '') + '</button>';
-    html += '  <button data-poly-nav="tasks" class="card" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("tasks", 20, 2) + '<span style="flex:1;font-weight:700;">المهام</span>' + (openTasksCount() > 0 ? '<span class="mono" style="font-size:12px;color:var(--amber);font-weight:800;">' + openTasksCount() + '</span>' : '') + '</button>';
-    html += '  <button data-poly-nav="archive" class="card" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("box", 20, 2) + '<span style="flex:1;font-weight:700;">أرشيف المهام</span></button>';
+    html += '  <button data-poly-nav="notes" class="card poly-menu-btn" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("note", 20, 2) + '<span style="flex:1;font-weight:700;">الملاحظات</span>' + (state.hasUnreadNotes ? '<span class="notif-dot" style="position:static;border:none;"></span>' : '') + '</button>';
+    html += '  <button data-poly-nav="tasks" class="card poly-menu-btn" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("tasks", 20, 2) + '<span style="flex:1;font-weight:700;">المهام</span>' + (openTasksCount() > 0 ? '<span class="mono" style="font-size:12px;color:var(--amber);font-weight:800;">' + openTasksCount() + '</span>' : '') + '</button>';
+    html += '  <button data-poly-nav="archive" class="card poly-menu-btn" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("box", 20, 2) + '<span style="flex:1;font-weight:700;">أرشيف المهام</span></button>';
     html += '</div>';
 
     root.innerHTML = html;

@@ -216,6 +216,36 @@
   .history-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
   .history-top span { font-size: 12px; font-weight: 700; color: var(--textDim); }
   .clear-btn { display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--red); background: none; border: none; }
+
+  /* schedule (استعمال الزمن) */
+  .day-section { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 12px; margin-bottom: 12px; }
+  .day-section-title { font-family: 'Cairo', 'Tajawal', sans-serif; font-size: 15px; font-weight: 800; margin: 0 0 10px; }
+  .shift-row {
+    display: flex; align-items: center; gap: 10px; background: var(--panelAlt); border: 1px solid var(--border);
+    border-radius: 10px; padding: 9px 10px; margin-bottom: 8px;
+  }
+  .shift-time { flex-shrink: 0; font-family: 'Roboto Mono', monospace; font-size: 13px; font-weight: 700; color: var(--amber); direction: ltr; }
+  .shift-workers { flex: 1; display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
+  .worker-chip { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: rgba(43,224,166,0.14); color: var(--teal); border: 1px solid rgba(43,224,166,0.3); white-space: nowrap; }
+  .shift-add-toggle {
+    display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%;
+    padding: 9px; border-radius: 10px; background: none; border: 1px dashed var(--border); color: var(--textDim);
+    font-size: 13px; font-weight: 700;
+  }
+  .shift-add-form { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .shift-add-form .time-row { display: flex; gap: 8px; }
+  .shift-add-form .time-row input {
+    flex: 1; min-width: 0; border-radius: 10px; padding: 10px; font-size: 15px; font-weight: 600; text-align: center;
+    background: var(--panelAlt); border: 1px solid var(--border); color: var(--text); outline: none; direction: ltr;
+  }
+  .shift-add-form .time-row input:focus { border-color: var(--amber); }
+  .worker-picker { display: flex; flex-wrap: wrap; gap: 6px; }
+  .worker-pick-chip {
+    font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 999px;
+    background: var(--panelAlt); border: 1px solid var(--border); color: var(--textDim);
+  }
+  .worker-pick-chip.picked { background: rgba(215,255,75,0.14); color: var(--amber); border-color: var(--amber); }
+  .worker-pick-chip:disabled { opacity: 0.35; }
   .history-empty { font-size: 14px; text-align: center; padding: 16px 0; color: var(--textDim); }
   .history-item {
     width: 100%; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px;
@@ -620,6 +650,16 @@
     recurringError: "",
     confirmDeleteRecurringId: null,
 
+    scheduleOpen: false,
+    schedule: [], // [{id, day, start, end, workers:[name,...]}]
+    scheduleAddDay: null, // رقم اليوم (0-6) اللي فيه فورم زيادة شيفت مفتوح
+    newShiftStart: "",
+    newShiftEnd: "",
+    newShiftWorkers: [], // أسماء الخدامين المختارين للشيفت الجديد (بحد أقصى 2)
+    scheduleBusy: false,
+    scheduleError: "",
+    confirmDeleteShiftId: null,
+
     moreMenuOpen: false,
   };
 
@@ -631,6 +671,7 @@
   var unsubNotes = null;
   var unsubTasks = null;
   var unsubComments = null;
+  var unsubSchedule = null;
 
   function notesSeenKey() { return "hasbatSalla_notesSeen_" + (state.myUid || ""); }
   function getNotesLastSeen() {
@@ -806,7 +847,8 @@
     mic: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>',
     stop: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>',
     chat: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>',
-    repeat: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>'
+    repeat: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>',
+    calendar: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h2"/><path d="M14 14h2"/><path d="M8 18h2"/></svg>'
   };
   function icon(name, size, weight) {
     return ICONS[name].replace(/{s}/g, size || 20).replace(/{w}/g, weight || 2);
@@ -846,6 +888,7 @@
     html += '  <button data-poly-nav="notes" class="card poly-menu-btn" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("note", 20, 2) + '<span style="flex:1;font-weight:700;">الملاحظات</span>' + (state.hasUnreadNotes ? '<span class="notif-dot" style="position:static;border:none;"></span>' : '') + '</button>';
     html += '  <button data-poly-nav="tasks" class="card poly-menu-btn" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("tasks", 20, 2) + '<span style="flex:1;font-weight:700;">المهام</span>' + (openTasksCount() > 0 ? '<span class="mono" style="font-size:12px;color:var(--amber);font-weight:800;">' + openTasksCount() + '</span>' : '') + '</button>';
     html += '  <button data-poly-nav="archive" class="card poly-menu-btn" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("box", 20, 2) + '<span style="flex:1;font-weight:700;">أرشيف المهام</span></button>';
+    html += '  <button data-poly-nav="schedule" class="card poly-menu-btn" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("calendar", 20, 2) + '<span style="flex:1;font-weight:700;">الجدول</span></button>';
     html += '</div>';
 
     root.innerHTML = html;
@@ -859,6 +902,7 @@
         if (target === "notes") { state.notesOpen = true; markNotesSeen(); render(); }
         else if (target === "tasks") { state.tasksOpen = true; render(); }
         else if (target === "archive") { openArchive(); }
+        else if (target === "schedule") { openSchedule(); }
       };
     });
   }
@@ -886,6 +930,10 @@
     }
     if (state.recurringOpen) {
       renderRecurringTasks();
+      return;
+    }
+    if (state.scheduleOpen) {
+      renderSchedule();
       return;
     }
     if (state.historyPageOpen) {
@@ -938,6 +986,7 @@
       html += '          <button data-more-action="notes">' + icon("note", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">الملاحظات</span>' + (state.hasUnreadNotes ? '<span class="notif-dot" style="position:static;border:none;"></span>' : '') + '</button>';
       html += '          <button data-more-action="tasks">' + icon("tasks", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">المهام</span>' + (openTasksCount() > 0 ? '<span class="mono" style="font-size:11px;color:var(--amber);font-weight:800;">' + openTasksCount() + '</span>' : '') + '</button>';
       html += '          <button data-more-action="archive">' + icon("box", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">أرشيف المهام</span></button>';
+      html += '          <button data-more-action="schedule">' + icon("calendar", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">الجدول</span></button>';
       if (state.myRole === "admin") {
         html += '          <button data-more-action="recurring">' + icon("repeat", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">المهام الدورية</span></button>';
       }
@@ -2425,6 +2474,175 @@
     });
   }
 
+  // ---------- الجدول (استعمال الزمن) — الأدمن غير كيبدل، الكل كيشوف ----------
+  function shiftRowToState(row) {
+    return { id: row.id, day: row.day_of_week, start: row.start_time, end: row.end_time, workers: row.workers || [] };
+  }
+
+  function shiftsForDay(day) {
+    return state.schedule.filter(function (s) { return s.day === day; }).sort(function (a, b) {
+      return (a.start || "").localeCompare(b.start || "");
+    });
+  }
+
+  function openSchedule() {
+    state.scheduleOpen = true;
+    state.moreMenuOpen = false;
+    render();
+    loadSchedule();
+  }
+
+  function loadSchedule() {
+    return db.from("schedule_shifts").select("*").then(function (res) {
+      if (res.error) { console.error(res.error); return; }
+      state.schedule = res.data.map(shiftRowToState);
+      render();
+    });
+  }
+
+  function subscribeSchedule() {
+    if (unsubSchedule) { unsubSchedule.unsubscribe(); unsubSchedule = null; }
+    loadSchedule();
+    unsubSchedule = db.channel("schedule_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "schedule_shifts" }, function () { loadSchedule(); })
+      .subscribe();
+  }
+
+  function toggleNewShiftWorker(name) {
+    var pos = state.newShiftWorkers.indexOf(name);
+    if (pos !== -1) { state.newShiftWorkers.splice(pos, 1); render(); return; }
+    if (state.newShiftWorkers.length >= 2) return;
+    state.newShiftWorkers.push(name);
+    render();
+  }
+
+  function addShift(day) {
+    var start = state.newShiftStart.trim();
+    var end = state.newShiftEnd.trim();
+    if (!start || !end) { state.scheduleError = "عمر وقت البداية والنهاية"; render(); return; }
+    if (!state.newShiftWorkers.length) { state.scheduleError = "اختار خدام واحد على الأقل"; render(); return; }
+    state.scheduleBusy = true;
+    state.scheduleError = "";
+    render();
+    db.from("schedule_shifts").insert({
+      day_of_week: day, start_time: start, end_time: end, workers: state.newShiftWorkers.slice()
+    }).then(function (r) {
+      state.scheduleBusy = false;
+      if (r.error) { state.scheduleError = r.error.message || "وقع مشكل"; render(); return; }
+      state.newShiftStart = ""; state.newShiftEnd = ""; state.newShiftWorkers = [];
+      state.scheduleAddDay = null;
+      loadSchedule();
+    });
+  }
+
+  function deleteShift(id) {
+    db.from("schedule_shifts").delete().eq("id", id).then(function (r) {
+      if (r.error) { console.error(r.error); alert("تعذر الحذف: " + (r.error.message || "")); return; }
+      loadSchedule();
+    });
+  }
+
+  function renderSchedule() {
+    var html = "";
+    html += '<div class="header">';
+    html += '  <div class="header-row">';
+    html += '    <div><h1>الجدول</h1><p class="sub">استعمال الزمن ديال الخدامين</p></div>';
+    html += '    <div class="header-actions">';
+    html += '      <button id="scheduleBackBtn" class="helper-back-btn" aria-label="رجوع">' + icon("x", 20, 2.5) + '</button>';
+    html += '    </div>';
+    html += '  </div>';
+    html += '</div>';
+
+    html += '<div class="list">';
+    WEEKDAY_NAMES.forEach(function (dayName, day) {
+      var shifts = shiftsForDay(day);
+      html += '<div class="day-section">';
+      html += '  <h3 class="day-section-title">' + esc(dayName) + '</h3>';
+      if (shifts.length === 0) {
+        html += '  <p class="sub" style="margin:0 0 8px;">ما كاين حتى شيفت</p>';
+      } else {
+        shifts.forEach(function (s) {
+          html += '  <div class="shift-row">';
+          html += '    <span class="shift-time mono">' + esc(s.start) + '&ndash;' + esc(s.end) + '</span>';
+          html += '    <div class="shift-workers">';
+          s.workers.forEach(function (w) { html += '<span class="worker-chip">' + esc(w) + '</span>'; });
+          html += '    </div>';
+          if (state.myRole === "admin") {
+            if (state.confirmDeleteShiftId === s.id) {
+              html += '    <div class="confirm-del">';
+              html += '      <button class="yes" data-shift-del-confirm="' + esc(s.id) + '">' + icon("check", 13) + '</button>';
+              html += '      <button class="no" data-shift-del-cancel="1">' + icon("x", 13) + '</button>';
+              html += '    </div>';
+            } else {
+              html += '    <button class="del-btn" data-shift-del-ask="' + esc(s.id) + '" aria-label="حذف الشيفت">' + icon("trash", 15) + '</button>';
+            }
+          }
+          html += '  </div>';
+        });
+      }
+
+      if (state.myRole === "admin") {
+        if (state.scheduleAddDay === day) {
+          html += '  <div class="shift-add-form">';
+          html += '    <div class="time-row">';
+          html += '      <input type="time" id="shiftStartInput" value="' + esc(state.newShiftStart) + '" />';
+          html += '      <input type="time" id="shiftEndInput" value="' + esc(state.newShiftEnd) + '" />';
+          html += '    </div>';
+          html += '    <div class="worker-picker">';
+          state.workers.filter(function (w) { return w.active; }).forEach(function (w) {
+            var picked = state.newShiftWorkers.indexOf(w.name) !== -1;
+            var disabled = !picked && state.newShiftWorkers.length >= 2;
+            html += '<button type="button" class="worker-pick-chip' + (picked ? " picked" : "") + '" data-shift-worker="' + esc(w.name) + '"' + (disabled ? " disabled" : "") + '>' + esc(w.name) + '</button>';
+          });
+          html += '    </div>';
+          html += '    <button class="confirm-btn" style="width:100%;" data-shift-add-confirm="' + day + '"' + (state.scheduleBusy ? " disabled" : "") + '>' + (state.scheduleBusy ? "جاري الإضافة..." : "إضافة الشيفت") + '</button>';
+          if (state.scheduleError) html += '    <p class="auth-error">' + esc(state.scheduleError) + '</p>';
+          html += '  </div>';
+        } else {
+          html += '  <button class="shift-add-toggle" data-shift-add-open="' + day + '">' + icon("plus", 15, 2.5) + ' زيد شيفت</button>';
+        }
+      }
+      html += '</div>';
+    });
+    html += '</div>';
+
+    root.innerHTML = html;
+
+    var backBtn = document.getElementById("scheduleBackBtn");
+    if (backBtn) backBtn.onclick = function () { state.scheduleOpen = false; state.scheduleAddDay = null; state.scheduleError = ""; render(); };
+
+    document.querySelectorAll("[data-shift-add-open]").forEach(function (btn) {
+      btn.onclick = function () {
+        state.scheduleAddDay = parseInt(btn.getAttribute("data-shift-add-open"), 10);
+        state.newShiftStart = ""; state.newShiftEnd = ""; state.newShiftWorkers = []; state.scheduleError = "";
+        render();
+      };
+    });
+
+    var startInput = document.getElementById("shiftStartInput");
+    if (startInput) startInput.oninput = function (e) { state.newShiftStart = e.target.value; };
+    var endInput = document.getElementById("shiftEndInput");
+    if (endInput) endInput.oninput = function (e) { state.newShiftEnd = e.target.value; };
+
+    document.querySelectorAll("[data-shift-worker]").forEach(function (btn) {
+      btn.onclick = function () { toggleNewShiftWorker(btn.getAttribute("data-shift-worker")); };
+    });
+
+    document.querySelectorAll("[data-shift-add-confirm]").forEach(function (btn) {
+      btn.onclick = function () { addShift(parseInt(btn.getAttribute("data-shift-add-confirm"), 10)); };
+    });
+
+    document.querySelectorAll("[data-shift-del-ask]").forEach(function (btn) {
+      btn.onclick = function () { state.confirmDeleteShiftId = btn.getAttribute("data-shift-del-ask"); render(); };
+    });
+    document.querySelectorAll("[data-shift-del-cancel]").forEach(function (btn) {
+      btn.onclick = function () { state.confirmDeleteShiftId = null; render(); };
+    });
+    document.querySelectorAll("[data-shift-del-confirm]").forEach(function (btn) {
+      btn.onclick = function () { deleteShift(btn.getAttribute("data-shift-del-confirm")); state.confirmDeleteShiftId = null; };
+    });
+  }
+
   // ---------- لوحة admin: زيادة/تعطيل خدامين ----------
   function renderAdminPanel() {
     var html = "";
@@ -2746,6 +2964,7 @@
         if (action === "notes") { state.notesOpen = true; markNotesSeen(); render(); }
         else if (action === "tasks") { state.tasksOpen = true; render(); }
         else if (action === "archive") { openArchive(); }
+        else if (action === "schedule") { openSchedule(); }
         else if (action === "recurring") { openRecurring(); }
         else if (action === "workers") { state.workerTabsOpen = !state.workerTabsOpen; render(); }
         else if (action === "logout") { render(); doLogout(); }
@@ -3166,6 +3385,7 @@
     if (unsubNotes) { unsubNotes.unsubscribe(); unsubNotes = null; }
     if (unsubTasks) { unsubTasks.unsubscribe(); unsubTasks = null; }
     if (unsubComments) { unsubComments.unsubscribe(); unsubComments = null; }
+    if (unsubSchedule) { unsubSchedule.unsubscribe(); unsubSchedule = null; }
   }
 
   function onSignedIn(user) {
@@ -3198,6 +3418,7 @@
       subscribeViewedData(user.id);
       subscribeNotes();
       subscribeTasks();
+      subscribeSchedule();
       render();
     });
   }

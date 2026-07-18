@@ -602,8 +602,22 @@
     archiveOpen: false,
     archive: [],
 
+    recurringOpen: false,
+    recurringTasks: [],
+    recurringAddOpen: false,
+    newRecurringTitle: "",
+    newRecurringNote: "",
+    newRecurringType: "weekly", // "weekly" | "monthly"
+    newRecurringWeekDays: [], // [0..6], 0=الأحد
+    newRecurringMonthDays: "", // "1,15,28"
+    recurringBusy: false,
+    recurringError: "",
+    confirmDeleteRecurringId: null,
+
     moreMenuOpen: false,
   };
+
+  var WEEKDAY_NAMES = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
   var unsubProducts = null;
   var unsubHistory = null;
@@ -785,7 +799,8 @@
     video: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>',
     mic: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>',
     stop: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>',
-    chat: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>'
+    chat: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>',
+    repeat: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>'
   };
   function icon(name, size, weight) {
     return ICONS[name].replace(/{s}/g, size || 20).replace(/{w}/g, weight || 2);
@@ -828,6 +843,10 @@
     }
     if (state.tasksOpen) {
       renderTasks();
+      return;
+    }
+    if (state.recurringOpen) {
+      renderRecurringTasks();
       return;
     }
     if (state.historyPageOpen) {
@@ -874,6 +893,9 @@
       html += '          <button data-more-action="notes">' + icon("note", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">الملاحظات</span>' + (state.hasUnreadNotes ? '<span class="notif-dot" style="position:static;border:none;"></span>' : '') + '</button>';
       html += '          <button data-more-action="tasks">' + icon("tasks", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">المهام</span>' + (openTasksCount() > 0 ? '<span class="mono" style="font-size:11px;color:var(--amber);font-weight:800;">' + openTasksCount() + '</span>' : '') + '</button>';
       html += '          <button data-more-action="archive">' + icon("box", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">أرشيف المهام</span></button>';
+      if (state.myRole === "admin") {
+        html += '          <button data-more-action="recurring">' + icon("repeat", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">المهام الدورية</span></button>';
+      }
       html += '          <button data-more-action="workers" class="' + (state.workerTabsOpen ? "active" : "") + '">' + icon("users", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">الأشخاص</span></button>';
       html += '          <button data-more-action="logout">' + icon("logout", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">خروج</span></button>';
       html += '        </div>';
@@ -2160,6 +2182,204 @@
     });
   }
 
+  // ---------- المهام الدورية (admin غير) ----------
+  function recurringRowToState(row) {
+    return {
+      id: row.id,
+      title: row.title,
+      note: row.note,
+      type: row.recurrence_type,
+      days: String(row.recurrence_days || "").split(",").map(function (s) { return parseInt(s, 10); }).filter(function (n) { return !isNaN(n); }),
+      active: row.active,
+      createdByName: row.created_by_name,
+      createdAt: row.created_at,
+      lastRunDate: row.last_run_date
+    };
+  }
+
+  function recurrenceLabel(rt) {
+    if (rt.type === "weekly") {
+      var names = rt.days.slice().sort(function (a, b) { return a - b; }).map(function (d) { return WEEKDAY_NAMES[d] || "?"; });
+      return "كل أسبوع: " + (names.join("، ") || "—");
+    }
+    var days = rt.days.slice().sort(function (a, b) { return a - b; });
+    return "شهريا فيوم: " + (days.join("، ") || "—");
+  }
+
+  function openRecurring() {
+    state.recurringOpen = true;
+    state.moreMenuOpen = false;
+    render();
+    loadRecurringTasks();
+  }
+
+  function loadRecurringTasks() {
+    return db.from("recurring_tasks").select("*").order("created_at", { ascending: false }).then(function (res) {
+      if (res.error) { console.error(res.error); return; }
+      state.recurringTasks = res.data.map(recurringRowToState);
+      render();
+    });
+  }
+
+  function addRecurringTask() {
+    var title = state.newRecurringTitle.trim();
+    if (!title) return;
+    var days;
+    if (state.newRecurringType === "weekly") {
+      days = state.newRecurringWeekDays.slice();
+    } else {
+      days = arabicToWesternDigits(state.newRecurringMonthDays).split(",")
+        .map(function (s) { return parseInt(s.trim(), 10); })
+        .filter(function (n) { return !isNaN(n) && n >= 1 && n <= 31; });
+    }
+    if (!days.length) {
+      state.recurringError = "اختار على الأقل يوم واحد";
+      render();
+      return;
+    }
+    state.recurringBusy = true;
+    state.recurringError = "";
+    render();
+    db.from("recurring_tasks").insert({
+      title: title,
+      note: state.newRecurringNote.trim() || null,
+      recurrence_type: state.newRecurringType,
+      recurrence_days: days.join(","),
+      active: true,
+      created_by: state.myUid,
+      created_by_name: state.myName
+    }).then(function (r) {
+      state.recurringBusy = false;
+      if (r.error) { state.recurringError = r.error.message || "وقع مشكل"; render(); return; }
+      state.newRecurringTitle = "";
+      state.newRecurringNote = "";
+      state.newRecurringWeekDays = [];
+      state.newRecurringMonthDays = "";
+      state.recurringAddOpen = false;
+      loadRecurringTasks();
+    });
+  }
+
+  function toggleRecurringActive(id, next) {
+    db.from("recurring_tasks").update({ active: next }).eq("id", id).then(function (r) {
+      if (r.error) { console.error(r.error); alert("وقع مشكل: " + (r.error.message || "")); return; }
+      loadRecurringTasks();
+    });
+  }
+
+  function deleteRecurringTask(id) {
+    db.from("recurring_tasks").delete().eq("id", id).then(function (r) {
+      if (r.error) { console.error(r.error); alert("تعذر الحذف: " + (r.error.message || "")); return; }
+      loadRecurringTasks();
+    });
+  }
+
+  function renderRecurringTasks() {
+    var html = "";
+    html += '<div class="header">';
+    html += '  <div class="header-row">';
+    html += '    <div><h1>المهام الدورية</h1><p class="sub">كتتخلق تلقائيا فمواعيدها</p></div>';
+    html += '    <div class="header-actions">';
+    html += '      <button id="recurringAddToggleBtn" class="add-btn" aria-label="مهمة دورية جديدة">' + icon(state.recurringAddOpen ? "x" : "plus", 22, 2.5) + '</button>';
+    html += '      <button id="recurringBackBtn" class="helper-back-btn" aria-label="رجوع">' + icon("x", 20, 2.5) + '</button>';
+    html += '    </div>';
+    html += '  </div>';
+    html += '</div>';
+
+    if (state.recurringAddOpen) {
+      html += '<div class="add-row open" style="flex-direction:column;align-items:stretch;gap:8px;padding:12px;">';
+      html += '  <input id="newRecurringTitleInput" type="text" placeholder="عنوان المهمة" value="' + esc(state.newRecurringTitle) + '" />';
+      html += '  <textarea id="newRecurringNoteInput" placeholder="ملاحظة (اختياري)" rows="1">' + esc(state.newRecurringNote) + '</textarea>';
+      html += '  <div style="display:flex;gap:8px;">';
+      html += '    <button class="clear-btn' + (state.newRecurringType === "weekly" ? " active" : "") + '" data-recurring-type="weekly">أسبوعية</button>';
+      html += '    <button class="clear-btn' + (state.newRecurringType === "monthly" ? " active" : "") + '" data-recurring-type="monthly">شهرية</button>';
+      html += '  </div>';
+      if (state.newRecurringType === "weekly") {
+        html += '  <div style="display:flex;flex-wrap:wrap;gap:6px;">';
+        WEEKDAY_NAMES.forEach(function (name, idx) {
+          var picked = state.newRecurringWeekDays.indexOf(idx) !== -1;
+          html += '    <button class="clear-btn' + (picked ? " active" : "") + '" data-recurring-weekday="' + idx + '">' + name + '</button>';
+        });
+        html += '  </div>';
+      } else {
+        html += '  <input id="newRecurringMonthDaysInput" type="text" placeholder="أيام الشهر (مثلا: 1,15,28)" value="' + esc(state.newRecurringMonthDays) + '" />';
+      }
+      html += '  <button id="confirmAddRecurringBtn" class="confirm-btn" style="width:100%;"' + (state.recurringBusy ? " disabled" : "") + '>' + (state.recurringBusy ? "جاري الإضافة..." : "إضافة") + '</button>';
+      if (state.recurringError) html += '  <p class="auth-error">' + esc(state.recurringError) + '</p>';
+      html += '</div>';
+    }
+
+    html += '<div class="list">';
+    if (state.recurringTasks.length === 0) {
+      html += '<div class="empty">';
+      html += '  <div class="empty-circle">' + icon("repeat", 22) + '</div>';
+      html += '  <p class="title">مازال ما كاينة حتى مهمة دورية</p>';
+      html += '  <p class="sub">اضغط على + باش تزيد وحدة</p>';
+      html += '</div>';
+    } else {
+      state.recurringTasks.forEach(function (rt) {
+        html += '<div class="card">';
+        html += '  <div class="card-row"><span class="card-name">' + esc(rt.title) + '</span>';
+        html += '    <span style="font-size:12px;color:' + (rt.active ? "#4ade80" : "#f87171") + ';">' + (rt.active ? "فعّالة" : "متوقفة") + '</span></div>';
+        if (rt.note) html += '  <p class="sub" style="margin:4px 0;">' + esc(rt.note) + '</p>';
+        html += '  <p class="sub" style="margin:4px 0;">' + esc(recurrenceLabel(rt)) + '</p>';
+        html += '  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">';
+        html += '    <button class="clear-btn" data-recurring-toggle="' + rt.id + '" data-next-active="' + (!rt.active) + '">' + (rt.active ? "وقف" : "فعّل") + '</button>';
+        if (state.confirmDeleteRecurringId === rt.id) {
+          html += '    <button class="clear-btn" style="color:#f87171;" data-recurring-del-confirm="' + rt.id + '">أكّد الحذف</button>';
+          html += '    <button class="clear-btn" data-recurring-del-cancel="1">إلغاء</button>';
+        } else {
+          html += '    <button class="clear-btn" style="color:#f87171;" data-recurring-del-ask="' + rt.id + '">حذف</button>';
+        }
+        html += '  </div>';
+        html += '</div>';
+      });
+    }
+    html += '</div>';
+
+    root.innerHTML = html;
+
+    var backBtn = document.getElementById("recurringBackBtn");
+    if (backBtn) backBtn.onclick = function () { state.recurringOpen = false; state.recurringAddOpen = false; render(); };
+
+    var addToggleBtn = document.getElementById("recurringAddToggleBtn");
+    if (addToggleBtn) addToggleBtn.onclick = function () { state.recurringAddOpen = !state.recurringAddOpen; render(); };
+
+    var titleEl = document.getElementById("newRecurringTitleInput");
+    if (titleEl) titleEl.oninput = function (e) { state.newRecurringTitle = e.target.value; };
+    var noteEl = document.getElementById("newRecurringNoteInput");
+    if (noteEl) noteEl.oninput = function (e) { state.newRecurringNote = e.target.value; };
+    var monthDaysEl = document.getElementById("newRecurringMonthDaysInput");
+    if (monthDaysEl) monthDaysEl.oninput = function (e) { state.newRecurringMonthDays = e.target.value; };
+
+    document.querySelectorAll("[data-recurring-type]").forEach(function (btn) {
+      btn.onclick = function () { state.newRecurringType = btn.getAttribute("data-recurring-type"); render(); };
+    });
+    document.querySelectorAll("[data-recurring-weekday]").forEach(function (btn) {
+      btn.onclick = function () {
+        var idx = parseInt(btn.getAttribute("data-recurring-weekday"), 10);
+        var pos = state.newRecurringWeekDays.indexOf(idx);
+        if (pos === -1) state.newRecurringWeekDays.push(idx); else state.newRecurringWeekDays.splice(pos, 1);
+        render();
+      };
+    });
+    var confirmAddBtn = document.getElementById("confirmAddRecurringBtn");
+    if (confirmAddBtn) confirmAddBtn.onclick = addRecurringTask;
+
+    document.querySelectorAll("[data-recurring-toggle]").forEach(function (btn) {
+      btn.onclick = function () { toggleRecurringActive(btn.getAttribute("data-recurring-toggle"), btn.getAttribute("data-next-active") === "true"); };
+    });
+    document.querySelectorAll("[data-recurring-del-ask]").forEach(function (btn) {
+      btn.onclick = function () { state.confirmDeleteRecurringId = btn.getAttribute("data-recurring-del-ask"); render(); };
+    });
+    document.querySelectorAll("[data-recurring-del-cancel]").forEach(function (btn) {
+      btn.onclick = function () { state.confirmDeleteRecurringId = null; render(); };
+    });
+    document.querySelectorAll("[data-recurring-del-confirm]").forEach(function (btn) {
+      btn.onclick = function () { deleteRecurringTask(btn.getAttribute("data-recurring-del-confirm")); state.confirmDeleteRecurringId = null; };
+    });
+  }
+
   // ---------- لوحة admin: زيادة/تعطيل خدامين ----------
   function renderAdminPanel() {
     var html = "";
@@ -2444,6 +2664,7 @@
         if (action === "notes") { state.notesOpen = true; markNotesSeen(); render(); }
         else if (action === "tasks") { state.tasksOpen = true; render(); }
         else if (action === "archive") { openArchive(); }
+        else if (action === "recurring") { openRecurring(); }
         else if (action === "workers") { state.workerTabsOpen = !state.workerTabsOpen; render(); }
         else if (action === "logout") { render(); doLogout(); }
       };

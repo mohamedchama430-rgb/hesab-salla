@@ -115,6 +115,7 @@
 
   /* sort menu (products view) */
   .sort-wrap { position: relative; flex-shrink: 0; }
+  .more-wrap { position: relative; flex-shrink: 0; }
   .sort-menu {
     position: absolute; top: 50px; right: 0; z-index: 30; min-width: 190px;
     max-width: calc(100vw - 32px);
@@ -128,6 +129,7 @@
   }
   .sort-menu button.active { background: rgba(215,255,75,0.12); color: var(--amber); }
   .sort-menu button + button { margin-top: 2px; }
+  .sort-menu.more-menu-panel { right: auto; left: 0; }
 
   /* main view switcher (calculator / products) */
   .view-tabs { display: flex; gap: 8px; margin-top: 12px; }
@@ -385,6 +387,34 @@
   .note-photo { max-width: 100%; border-radius: 10px; margin: 6px 0; display: block; }
   .note-del-btn { margin-top: 4px; }
   .note-confirm-del { margin-top: 4px; }
+
+  /* tasks page */
+  .tasks-list { padding: 16px; }
+  .task-card { display: flex; align-items: flex-start; gap: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+  .task-body { flex: 1; min-width: 0; }
+  .task-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; gap: 8px; }
+  .task-author { font-size: 12px; font-weight: 800; color: var(--amber); white-space: nowrap; }
+  .task-time { font-size: 11px; color: var(--textDim); white-space: nowrap; }
+  .task-title { font-size: 15px; font-weight: 700; color: var(--text); word-break: break-word; }
+  .task-note { font-size: 13px; color: var(--textDim); margin-top: 4px; white-space: pre-wrap; word-break: break-word; }
+  .task-done-btn {
+    flex-shrink: 0; display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700;
+    padding: 7px 10px; border-radius: 9px; background: var(--panelAlt); border: 1px solid var(--border); color: var(--teal);
+  }
+  .task-confirm-done { flex-shrink: 0; }
+  .task-add-row { display: none; flex-direction: column; gap: 8px; padding: 12px 16px; background: var(--bg); border-top: 1px solid var(--border); }
+  .task-add-row.open { display: flex; }
+  .task-add-row input, .task-add-row textarea {
+    border-radius: 10px; padding: 10px 12px; font-size: 15px; font-weight: 500;
+    background: var(--panelAlt); border: 1px solid var(--border); color: var(--text); outline: none; font-family: inherit;
+  }
+  .task-add-row input:focus, .task-add-row textarea:focus { border-color: var(--amber); }
+  .task-add-row textarea { resize: none; min-height: 44px; max-height: 100px; }
+  .task-add-row .task-add-confirm {
+    align-self: flex-end; display: flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: 10px;
+    background: var(--teal); color: #04211C; border: none; font-weight: 800; font-size: 14px;
+  }
+  .task-add-row .task-add-confirm:disabled { opacity: 0.5; }
 </style>
 </head>
 <body>
@@ -470,12 +500,22 @@
     confirmDeleteNoteId: null,
     notePhotoUrl: null,
     notePhotoUploading: false,
+
+    tasksOpen: false,
+    tasks: [],
+    taskAddOpen: false,
+    newTaskTitle: "",
+    newTaskNote: "",
+    confirmDoneTaskId: null,
+
+    moreMenuOpen: false,
   };
 
   var unsubProducts = null;
   var unsubHistory = null;
   var unsubDirectory = null;
   var unsubNotes = null;
+  var unsubTasks = null;
 
   function notesSeenKey() { return "hasbatSalla_notesSeen_" + (state.myUid || ""); }
   function getNotesLastSeen() {
@@ -643,7 +683,9 @@
     camera: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg>',
     delete: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>',
     grip: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
-    sort: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="14" y2="6"/><line x1="4" y1="12" x2="11" y2="12"/><line x1="4" y1="18" x2="8" y2="18"/><path d="M17 4v16"/><path d="M13 8l4-4 4 4"/><path d="M21 16l-4 4-4-4"/></svg>'
+    sort: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="14" y2="6"/><line x1="4" y1="12" x2="11" y2="12"/><line x1="4" y1="18" x2="8" y2="18"/><path d="M17 4v16"/><path d="M13 8l4-4 4 4"/><path d="M21 16l-4 4-4-4"/></svg>',
+    tasks: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="6" height="6" rx="1"/><path d="M6 7l1 1 2-2"/><line x1="12" y1="6" x2="21" y2="6"/><rect x="3" y="14" width="6" height="6" rx="1"/><line x1="12" y1="16" x2="21" y2="16"/></svg>',
+    more: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>'
   };
   function icon(name, size, weight) {
     return ICONS[name].replace(/{s}/g, size || 20).replace(/{w}/g, weight || 2);
@@ -676,6 +718,10 @@
       renderNotes();
       return;
     }
+    if (state.tasksOpen) {
+      renderTasks();
+      return;
+    }
     if (state.historyPageOpen) {
       renderHistoryPage();
       return;
@@ -695,7 +741,6 @@
     html += '  <div class="header-row">';
     html += '    <div><h1>حساب الصالة</h1><p class="sub">صالة الحديد &middot; ' + esc(state.myName) + '</p></div>';
     html += '    <div class="header-actions">';
-    html += '      <button id="notesBtn" class="icon-btn ghost" aria-label="الملاحظات">' + icon("note", 20, 2) + (state.hasUnreadNotes ? '<span class="notif-dot"></span>' : '') + '</button>';
     if (state.activeView === "products") {
       html += '      <div class="sort-wrap">';
       html += '        <button id="sortToggleBtn" class="icon-btn ghost' + (state.sortMode !== "default" ? " active-toggle" : "") + '" aria-label="ترتيب المنتجات">' + icon("sort", 18, 2) + '</button>';
@@ -711,11 +756,20 @@
     if (!state.isReadOnly && state.activeView === "products") {
       html += '      <button id="addToggleBtn" class="add-btn" aria-label="زيد منتج">' + icon(state.adding ? "x" : "plus", 22, 2.5) + '</button>';
     }
-    html += '      <button id="workersToggleBtn" class="icon-btn ghost' + (state.workerTabsOpen ? " active-toggle" : "") + '" aria-label="الخدامين">' + icon("users", 18, 2) + '</button>';
     if (state.myRole === "admin") {
       html += '      <button id="adminOpenBtn" class="icon-btn ghost" aria-label="إدارة الخدامين">' + icon("lock", 16, 2) + '</button>';
     }
-    html += '      <button id="logoutBtn" class="icon-btn ghost" aria-label="خروج">' + icon("logout", 18, 2) + '</button>';
+    html += '      <div class="more-wrap">';
+    html += '        <button id="moreMenuBtn" class="icon-btn ghost' + (state.moreMenuOpen ? " active-toggle" : "") + '" aria-label="المزيد">' + icon("more", 20, 2) + ((state.hasUnreadNotes || openTasksCount() > 0) ? '<span class="notif-dot"></span>' : '') + '</button>';
+    if (state.moreMenuOpen) {
+      html += '        <div class="sort-menu more-menu-panel slide-up">';
+      html += '          <button data-more-action="notes">' + icon("note", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">الملاحظات</span>' + (state.hasUnreadNotes ? '<span class="notif-dot" style="position:static;border:none;"></span>' : '') + '</button>';
+      html += '          <button data-more-action="tasks">' + icon("tasks", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">المهام</span>' + (openTasksCount() > 0 ? '<span class="mono" style="font-size:11px;color:var(--amber);font-weight:800;">' + openTasksCount() + '</span>' : '') + '</button>';
+      html += '          <button data-more-action="workers" class="' + (state.workerTabsOpen ? "active" : "") + '">' + icon("users", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">الأشخاص</span></button>';
+      html += '          <button data-more-action="logout">' + icon("logout", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">خروج</span></button>';
+      html += '        </div>';
+    }
+    html += '      </div>';
     html += '    </div>';
     html += '  </div>';
 
@@ -1172,6 +1226,155 @@
       .subscribe();
   }
 
+  // ---------- صفحة المهام ----------
+  function openTasksCount() { return state.tasks.length; }
+
+  function renderTasks() {
+    var html = "";
+    html += '<div class="header">';
+    html += '  <div class="header-row">';
+    html += '    <div><h1>المهام</h1><p class="sub">مشتركة بين الجميع</p></div>';
+    html += '    <div class="header-actions">';
+    html += '      <button id="taskAddToggleBtn" class="add-btn" aria-label="إنشاء مهمة">' + icon(state.taskAddOpen ? "x" : "plus", 22, 2.5) + '</button>';
+    html += '      <button id="tasksBackBtn" class="helper-back-btn" aria-label="رجوع">' + icon("x", 20, 2.5) + '</button>';
+    html += '    </div>';
+    html += '  </div>';
+    html += '</div>';
+
+    html += '<div class="list tasks-list">';
+    if (state.tasks.length === 0) {
+      html += '<div class="empty">';
+      html += '  <div class="empty-circle">' + icon("tasks", 22) + '</div>';
+      html += '  <p class="title">مازال ما كاينة حتى مهمة</p>';
+      html += '  <p class="sub">اضغط على + باش تزيد أول مهمة</p>';
+      html += '</div>';
+    } else {
+      state.tasks.forEach(function (t) {
+        html += '<div class="task-card">';
+        html += '  <div class="task-body">';
+        html += '    <div class="task-meta"><span class="task-author">' + esc(t.createdByName) + '</span><span class="task-time">' + esc(timeAgo(t.createdAt)) + '</span></div>';
+        html += '    <div class="task-title">' + esc(t.title) + '</div>';
+        if (t.note) html += '    <div class="task-note">' + esc(t.note) + '</div>';
+        html += '  </div>';
+        if (state.confirmDoneTaskId === t.id) {
+          html += '  <div class="confirm-del task-confirm-done">';
+          html += '    <button class="yes" data-task-done-confirm="' + esc(t.id) + '">' + icon("check", 13) + ' إنهاء</button>';
+          html += '    <button class="no" data-task-done-cancel="' + esc(t.id) + '">' + icon("x", 13) + '</button>';
+          html += '  </div>';
+        } else {
+          html += '  <button class="task-done-btn" data-task-done-ask="' + esc(t.id) + '">' + icon("check", 15, 2.5) + ' إنهاء</button>';
+        }
+        html += '</div>';
+      });
+    }
+    html += '</div>';
+
+    html += '<div class="task-add-row' + (state.taskAddOpen ? " open" : "") + '">';
+    html += '  <input id="newTaskTitleInput" type="text" placeholder="عنوان المهمة..." value="' + esc(state.newTaskTitle) + '" />';
+    html += '  <textarea id="newTaskNoteInput" placeholder="ملاحظة (اختياري)" rows="1">' + esc(state.newTaskNote) + '</textarea>';
+    html += '  <button id="confirmAddTaskBtn" class="task-add-confirm"' + (state.newTaskTitle.trim() ? "" : " disabled") + '>' + icon("check", 16, 2.5) + ' إنشاء</button>';
+    html += '</div>';
+
+    root.innerHTML = html;
+
+    var backBtn = document.getElementById("tasksBackBtn");
+    if (backBtn) backBtn.onclick = function () { state.tasksOpen = false; state.taskAddOpen = false; render(); };
+
+    var addToggleBtn = document.getElementById("taskAddToggleBtn");
+    if (addToggleBtn) addToggleBtn.onclick = function () {
+      state.taskAddOpen = !state.taskAddOpen;
+      render();
+      if (state.taskAddOpen) {
+        var titleInput = document.getElementById("newTaskTitleInput");
+        if (titleInput) titleInput.focus();
+      }
+    };
+
+    var titleInput = document.getElementById("newTaskTitleInput");
+    if (titleInput) {
+      titleInput.oninput = function (e) {
+        state.newTaskTitle = e.target.value;
+        var confirmBtn = document.getElementById("confirmAddTaskBtn");
+        if (confirmBtn) confirmBtn.disabled = !state.newTaskTitle.trim();
+      };
+    }
+    var noteInput = document.getElementById("newTaskNoteInput");
+    if (noteInput) {
+      noteInput.oninput = function (e) {
+        state.newTaskNote = e.target.value;
+        e.target.style.height = "auto";
+        e.target.style.height = Math.min(e.target.scrollHeight, 100) + "px";
+      };
+    }
+    var confirmAddBtn = document.getElementById("confirmAddTaskBtn");
+    if (confirmAddBtn) confirmAddBtn.onclick = createTask;
+
+    document.querySelectorAll("[data-task-done-ask]").forEach(function (btn) {
+      btn.onclick = function () { state.confirmDoneTaskId = btn.getAttribute("data-task-done-ask"); render(); };
+    });
+    document.querySelectorAll("[data-task-done-cancel]").forEach(function (btn) {
+      btn.onclick = function () { state.confirmDoneTaskId = null; render(); };
+    });
+    document.querySelectorAll("[data-task-done-confirm]").forEach(function (btn) {
+      btn.onclick = function () {
+        var id = btn.getAttribute("data-task-done-confirm");
+        state.confirmDoneTaskId = null;
+        completeTask(id);
+        render();
+      };
+    });
+  }
+
+  function createTask() {
+    var title = state.newTaskTitle.trim();
+    if (!title) return;
+    var note = state.newTaskNote.trim();
+    state.newTaskTitle = "";
+    state.newTaskNote = "";
+    state.taskAddOpen = false;
+    var taskData = {
+      title: title,
+      note: note || null,
+      created_by: state.myUid,
+      created_by_name: state.myName,
+      status: "open"
+    };
+    db.from("tasks").insert(taskData).then(function (r) { if (r.error) console.error(r.error); });
+    render();
+  }
+
+  function completeTask(id) {
+    db.from("tasks").update({
+      status: "done",
+      completed_by: state.myUid,
+      completed_by_name: state.myName,
+      completed_at: new Date().toISOString()
+    }).eq("id", id).then(function (r) { if (r.error) console.error(r.error); });
+  }
+
+  function taskRowToState(row) {
+    return {
+      id: row.id, title: row.title, note: row.note,
+      createdByName: row.created_by_name, createdAt: row.created_at, status: row.status
+    };
+  }
+
+  function loadTasks() {
+    return db.from("tasks").select("*").eq("status", "open").order("created_at", { ascending: false }).limit(200).then(function (res) {
+      if (res.error) { console.error(res.error); return; }
+      state.tasks = res.data.map(taskRowToState);
+      render();
+    });
+  }
+
+  function subscribeTasks() {
+    if (unsubTasks) { unsubTasks.unsubscribe(); unsubTasks = null; }
+    loadTasks();
+    unsubTasks = db.channel("tasks_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, function () { loadTasks(); })
+      .subscribe();
+  }
+
   function renderHistoryPage() {
     var html = "";
     html += '<div class="header">';
@@ -1488,14 +1691,23 @@
 
   // ---------- events ----------
   function attachEvents() {
-    var notesBtn = document.getElementById("notesBtn");
-    if (notesBtn) notesBtn.onclick = function () { state.notesOpen = true; markNotesSeen(); render(); };
-
-    var logoutBtn = document.getElementById("logoutBtn");
-    if (logoutBtn) logoutBtn.onclick = doLogout;
-
-    var workersToggleBtn = document.getElementById("workersToggleBtn");
-    if (workersToggleBtn) workersToggleBtn.onclick = function () { state.workerTabsOpen = !state.workerTabsOpen; render(); };
+    var moreMenuBtn = document.getElementById("moreMenuBtn");
+    if (moreMenuBtn) moreMenuBtn.onclick = function (e) {
+      e.stopPropagation();
+      state.moreMenuOpen = !state.moreMenuOpen;
+      render();
+    };
+    document.querySelectorAll("[data-more-action]").forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        var action = btn.getAttribute("data-more-action");
+        state.moreMenuOpen = false;
+        if (action === "notes") { state.notesOpen = true; markNotesSeen(); render(); }
+        else if (action === "tasks") { state.tasksOpen = true; render(); }
+        else if (action === "workers") { state.workerTabsOpen = !state.workerTabsOpen; render(); }
+        else if (action === "logout") { render(); doLogout(); }
+      };
+    });
 
     var adminOpenBtn = document.getElementById("adminOpenBtn");
     if (adminOpenBtn) adminOpenBtn.onclick = function () { state.adminOpen = true; render(); };
@@ -1909,6 +2121,7 @@
     if (unsubHistory) { unsubHistory.unsubscribe(); unsubHistory = null; }
     if (unsubDirectory) { unsubDirectory.unsubscribe(); unsubDirectory = null; }
     if (unsubNotes) { unsubNotes.unsubscribe(); unsubNotes = null; }
+    if (unsubTasks) { unsubTasks.unsubscribe(); unsubTasks = null; }
   }
 
   function onSignedIn(user) {
@@ -1939,6 +2152,7 @@
       subscribeWorkers();
       subscribeViewedData(user.id);
       subscribeNotes();
+      subscribeTasks();
       render();
     });
   }
@@ -1962,6 +2176,12 @@
     if (!state.sortMenuOpen) return;
     if (e.target.closest && e.target.closest(".sort-wrap")) return;
     state.sortMenuOpen = false;
+    render();
+  });
+  document.addEventListener("pointerdown", function (e) {
+    if (!state.moreMenuOpen) return;
+    if (e.target.closest && e.target.closest(".more-wrap")) return;
+    state.moreMenuOpen = false;
     render();
   });
   document.addEventListener("pointerdown", function (e) {

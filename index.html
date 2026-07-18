@@ -411,10 +411,31 @@
   .task-add-row input:focus, .task-add-row textarea:focus { border-color: var(--amber); }
   .task-add-row textarea { resize: none; min-height: 44px; max-height: 100px; }
   .task-add-row .task-add-confirm {
-    align-self: flex-end; display: flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: 10px;
+    flex-shrink: 0; display: flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: 10px;
     background: var(--teal); color: #04211C; border: none; font-weight: 800; font-size: 14px;
   }
   .task-add-row .task-add-confirm:disabled { opacity: 0.5; }
+
+  .task-media-btns { display: flex; align-items: center; gap: 8px; }
+  .task-media-btn {
+    width: 40px; height: 40px; border-radius: 999px; background: var(--panel); color: var(--textDim);
+    border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .task-media-btn:disabled { opacity: 0.4; }
+  .task-media-btn.recording { background: var(--red); color: #fff; border-color: var(--red); animation: pulseGlow 1.4s ease-in-out infinite; }
+  .task-record-label { font-size: 12px; font-weight: 700; color: var(--red); display: flex; align-items: center; gap: 6px; }
+  .task-record-label::before { content: ""; width: 8px; height: 8px; border-radius: 999px; background: var(--red); animation: pulseGlow 1.4s ease-in-out infinite; }
+  .task-media-preview { position: relative; display: inline-block; margin-bottom: 2px; }
+  .task-media-preview img, .task-media-preview video { max-height: 120px; max-width: 100%; border-radius: 10px; display: block; }
+  .task-media-preview audio { display: block; max-width: 220px; }
+  .task-media-loading { font-size: 13px; color: var(--textDim); padding: 4px 0; }
+  .task-media-remove {
+    position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--red); color: #fff; border: none; display: flex; align-items: center; justify-content: center; padding: 0;
+  }
+  .task-media { max-width: 100%; border-radius: 10px; margin: 8px 0 2px; display: block; }
+  video.task-media { max-height: 220px; }
+  audio.task-media { width: 100%; max-width: 260px; }
 </style>
 </head>
 <body>
@@ -433,6 +454,8 @@
   var SUPABASE_URL = "https://nsmxrtvzjgwiyscfildu.supabase.co";
   var SUPABASE_ANON_KEY = "sb_publishable_ZhwzJGgN0tqLfI0wf91XBw_uo3OKKWD";
   var SUPABASE_BUCKET = "note-photos";
+  var TASK_MEDIA_BUCKET = "task-media";
+  var TASK_VIDEO_MAX_BYTES = 25 * 1024 * 1024; // 25MB أقصى حجم للفيديو
   // اسم الـEdge Function لي كتدير عمليات admin (زيادة/تعطيل خدام) - شوف supabase/functions/admin-manage-worker
   var ADMIN_FN_NAME = "admin-manage-worker";
   // ==========================================================================
@@ -507,6 +530,11 @@
     newTaskTitle: "",
     newTaskNote: "",
     confirmDoneTaskId: null,
+    newTaskMediaUrl: null,
+    newTaskMediaType: null, // "photo" | "video" | "audio"
+    newTaskMediaUploading: false,
+    taskRecording: false,
+    taskRecordSeconds: 0,
 
     moreMenuOpen: false,
   };
@@ -622,8 +650,9 @@
     return d.innerHTML;
   }
   function timeAgo(ts) {
-    if (!ts || !ts.toDate) return "";
-    var d = ts.toDate();
+    if (!ts) return "";
+    var d = ts.toDate ? ts.toDate() : new Date(ts);
+    if (isNaN(d.getTime())) return "";
     var diff = Math.floor((Date.now() - d.getTime()) / 1000);
     if (diff < 60) return "الآن";
     if (diff < 3600) return Math.floor(diff / 60) + " د";
@@ -685,7 +714,10 @@
     grip: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
     sort: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="14" y2="6"/><line x1="4" y1="12" x2="11" y2="12"/><line x1="4" y1="18" x2="8" y2="18"/><path d="M17 4v16"/><path d="M13 8l4-4 4 4"/><path d="M21 16l-4 4-4-4"/></svg>',
     tasks: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="6" height="6" rx="1"/><path d="M6 7l1 1 2-2"/><line x1="12" y1="6" x2="21" y2="6"/><rect x="3" y="14" width="6" height="6" rx="1"/><line x1="12" y1="16" x2="21" y2="16"/></svg>',
-    more: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>'
+    more: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>',
+    video: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>',
+    mic: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>',
+    stop: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>'
   };
   function icon(name, size, weight) {
     return ICONS[name].replace(/{s}/g, size || 20).replace(/{w}/g, weight || 2);
@@ -1255,6 +1287,7 @@
         html += '    <div class="task-meta"><span class="task-author">' + esc(t.createdByName) + '</span><span class="task-time">' + esc(timeAgo(t.createdAt)) + '</span></div>';
         html += '    <div class="task-title">' + esc(t.title) + '</div>';
         if (t.note) html += '    <div class="task-note">' + esc(t.note) + '</div>';
+        html += renderTaskMedia(t.mediaUrl, t.mediaType);
         html += '  </div>';
         if (state.confirmDoneTaskId === t.id) {
           html += '  <div class="confirm-del task-confirm-done">';
@@ -1272,7 +1305,33 @@
     html += '<div class="task-add-row' + (state.taskAddOpen ? " open" : "") + '">';
     html += '  <input id="newTaskTitleInput" type="text" placeholder="عنوان المهمة..." value="' + esc(state.newTaskTitle) + '" />';
     html += '  <textarea id="newTaskNoteInput" placeholder="ملاحظة (اختياري)" rows="1">' + esc(state.newTaskNote) + '</textarea>';
-    html += '  <button id="confirmAddTaskBtn" class="task-add-confirm"' + (state.newTaskTitle.trim() ? "" : " disabled") + '>' + icon("check", 16, 2.5) + ' إنشاء</button>';
+
+    if (state.newTaskMediaUploading || state.newTaskMediaUrl) {
+      html += '  <div class="task-media-preview">';
+      if (state.newTaskMediaUploading) {
+        html += '    <div class="task-media-loading">جاري رفع الملف...</div>';
+      } else {
+        if (state.newTaskMediaType === "photo") html += '    <img src="' + esc(state.newTaskMediaUrl) + '" />';
+        else if (state.newTaskMediaType === "video") html += '    <video src="' + esc(state.newTaskMediaUrl) + '" controls playsinline></video>';
+        else if (state.newTaskMediaType === "audio") html += '    <audio src="' + esc(state.newTaskMediaUrl) + '" controls></audio>';
+        html += '    <button id="taskMediaRemove" class="task-media-remove" aria-label="حذف المرفق">' + icon("x", 14, 3) + '</button>';
+      }
+      html += '  </div>';
+    }
+    if (state.taskRecording) {
+      html += '  <div class="task-record-label">جاري تسجيل الفوكال...</div>';
+    }
+
+    html += '  <div class="task-media-btns">';
+    html += '    <input type="file" id="taskPhotoInput" accept="image/*" capture="environment" style="display:none" />';
+    html += '    <input type="file" id="taskVideoInput" accept="video/*" capture="environment" style="display:none" />';
+    var mediaBusy = state.newTaskMediaUploading || !!state.newTaskMediaUrl;
+    html += '    <button id="taskPhotoBtn" class="task-media-btn" aria-label="إرفاق صورة"' + (mediaBusy || state.taskRecording ? " disabled" : "") + '>' + icon("camera", 18) + '</button>';
+    html += '    <button id="taskVideoBtn" class="task-media-btn" aria-label="إرفاق فيديو"' + (mediaBusy || state.taskRecording ? " disabled" : "") + '>' + icon("video", 18) + '</button>';
+    html += '    <button id="taskVoiceBtn" class="task-media-btn' + (state.taskRecording ? " recording" : "") + '" aria-label="' + (state.taskRecording ? "إيقاف التسجيل" : "تسجيل فوكال") + '"' + (mediaBusy && !state.taskRecording ? " disabled" : "") + '>' + icon(state.taskRecording ? "stop" : "mic", 18) + '</button>';
+    html += '    <div style="flex:1"></div>';
+    html += '    <button id="confirmAddTaskBtn" class="task-add-confirm"' + (state.newTaskTitle.trim() ? "" : " disabled") + '>' + icon("check", 16, 2.5) + ' إنشاء</button>';
+    html += '  </div>';
     html += '</div>';
 
     root.innerHTML = html;
@@ -1309,6 +1368,42 @@
     var confirmAddBtn = document.getElementById("confirmAddTaskBtn");
     if (confirmAddBtn) confirmAddBtn.onclick = createTask;
 
+    var photoBtn = document.getElementById("taskPhotoBtn");
+    var photoInput = document.getElementById("taskPhotoInput");
+    if (photoBtn && photoInput) {
+      photoBtn.onclick = function () { photoInput.click(); };
+      photoInput.onchange = function (e) {
+        var file = e.target.files && e.target.files[0];
+        if (file) uploadTaskPhoto(file);
+        photoInput.value = "";
+      };
+    }
+    var videoBtn = document.getElementById("taskVideoBtn");
+    var videoInput = document.getElementById("taskVideoInput");
+    if (videoBtn && videoInput) {
+      videoBtn.onclick = function () { videoInput.click(); };
+      videoInput.onchange = function (e) {
+        var file = e.target.files && e.target.files[0];
+        if (file) uploadTaskVideo(file);
+        videoInput.value = "";
+      };
+    }
+    var voiceBtn = document.getElementById("taskVoiceBtn");
+    if (voiceBtn) {
+      voiceBtn.onclick = function () {
+        if (state.taskRecording) stopTaskRecording();
+        else startTaskRecording();
+      };
+    }
+    var mediaRemove = document.getElementById("taskMediaRemove");
+    if (mediaRemove) {
+      mediaRemove.onclick = function () {
+        state.newTaskMediaUrl = null;
+        state.newTaskMediaType = null;
+        render();
+      };
+    }
+
     document.querySelectorAll("[data-task-done-ask]").forEach(function (btn) {
       btn.onclick = function () { state.confirmDoneTaskId = btn.getAttribute("data-task-done-ask"); render(); };
     });
@@ -1325,12 +1420,119 @@
     });
   }
 
+  function renderTaskMedia(url, type) {
+    if (!url) return "";
+    if (type === "photo") return '    <img class="task-media" src="' + esc(url) + '" alt="صورة" />';
+    if (type === "video") return '    <video class="task-media" src="' + esc(url) + '" controls playsinline></video>';
+    if (type === "audio") return '    <audio class="task-media" src="' + esc(url) + '" controls></audio>';
+    return "";
+  }
+
+  // ---------- مرفقات المهام: صورة / فيديو / فوكال ----------
+  function uploadTaskMedia(blobOrFile, type, ext, contentType) {
+    if (!supabaseClient) { alert("خدمة رفع الملفات غير متوفرة حاليا"); return; }
+    state.newTaskMediaUploading = true;
+    render();
+    var fileName = "task_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8) + "." + ext;
+    supabaseClient.storage.from(TASK_MEDIA_BUCKET).upload(fileName, blobOrFile, { contentType: contentType })
+      .then(function (result) {
+        if (result.error) throw result.error;
+        var pub = supabaseClient.storage.from(TASK_MEDIA_BUCKET).getPublicUrl(fileName);
+        state.newTaskMediaUrl = pub.data.publicUrl;
+        state.newTaskMediaType = type;
+        state.newTaskMediaUploading = false;
+        render();
+      })
+      .catch(function (err) {
+        console.error(err);
+        state.newTaskMediaUploading = false;
+        alert("تعذر رفع الملف، حاول مرة أخرى");
+        render();
+      });
+  }
+
+  function uploadTaskPhoto(file) {
+    state.newTaskMediaUploading = true;
+    render();
+    compressImageFile(file, 1000, 0.65, function (blob) {
+      if (!blob) {
+        state.newTaskMediaUploading = false;
+        alert("تعذر قراءة الصورة");
+        render();
+        return;
+      }
+      uploadTaskMedia(blob, "photo", "jpg", "image/jpeg");
+    });
+  }
+
+  function uploadTaskVideo(file) {
+    if (file.size > TASK_VIDEO_MAX_BYTES) {
+      alert("الفيديو كبير بزاف (الحد الأقصى 25 ميغا)، حاول فيديو أقصر");
+      return;
+    }
+    var ext = "mp4";
+    if (file.name && file.name.indexOf(".") !== -1) ext = file.name.split(".").pop().toLowerCase();
+    uploadTaskMedia(file, "video", ext, file.type || "video/mp4");
+  }
+
+  var taskMediaRecorder = null;
+  var taskMediaChunks = [];
+
+  function startTaskRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === "undefined") {
+      alert("التسجيل الصوتي غير مدعوم فهاد المتصفح");
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      taskMediaChunks = [];
+      var mimeType = "";
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported) {
+        if (MediaRecorder.isTypeSupported("audio/webm")) mimeType = "audio/webm";
+        else if (MediaRecorder.isTypeSupported("audio/mp4")) mimeType = "audio/mp4";
+      }
+      try {
+        taskMediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream);
+      } catch (e) {
+        console.error(e);
+        alert("تعذر بدء التسجيل");
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        return;
+      }
+      taskMediaRecorder.ondataavailable = function (e) { if (e.data && e.data.size > 0) taskMediaChunks.push(e.data); };
+      taskMediaRecorder.onstop = function () {
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        var outType = taskMediaRecorder.mimeType || "audio/webm";
+        var blob = new Blob(taskMediaChunks, { type: outType });
+        var ext = outType.indexOf("mp4") !== -1 ? "m4a" : "webm";
+        uploadTaskMedia(blob, "audio", ext, outType);
+      };
+      taskMediaRecorder.start();
+      state.taskRecording = true;
+      render();
+    }).catch(function (err) {
+      console.error(err);
+      alert("تعذر الوصول للميكروفون، تأكد من السماح بالإذن");
+    });
+  }
+
+  function stopTaskRecording() {
+    if (taskMediaRecorder && state.taskRecording) {
+      taskMediaRecorder.stop();
+      state.taskRecording = false;
+      render();
+    }
+  }
+
   function createTask() {
     var title = state.newTaskTitle.trim();
     if (!title) return;
     var note = state.newTaskNote.trim();
+    var mediaUrl = state.newTaskMediaUrl;
+    var mediaType = state.newTaskMediaType;
     state.newTaskTitle = "";
     state.newTaskNote = "";
+    state.newTaskMediaUrl = null;
+    state.newTaskMediaType = null;
     state.taskAddOpen = false;
     var taskData = {
       title: title,
@@ -1339,6 +1541,7 @@
       created_by_name: state.myName,
       status: "open"
     };
+    if (mediaUrl) { taskData.media_url = mediaUrl; taskData.media_type = mediaType; }
     db.from("tasks").insert(taskData).then(function (r) { if (r.error) console.error(r.error); });
     render();
   }
@@ -1355,7 +1558,8 @@
   function taskRowToState(row) {
     return {
       id: row.id, title: row.title, note: row.note,
-      createdByName: row.created_by_name, createdAt: row.created_at, status: row.status
+      createdByName: row.created_by_name, createdAt: row.created_at, status: row.status,
+      mediaUrl: row.media_url, mediaType: row.media_type
     };
   }
 

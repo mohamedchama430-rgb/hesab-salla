@@ -599,6 +599,9 @@
     commentMediaUploading: false,
     commentRecording: false,
 
+    archiveOpen: false,
+    archive: [],
+
     moreMenuOpen: false,
   };
 
@@ -819,6 +822,10 @@
       renderTaskComments();
       return;
     }
+    if (state.archiveOpen) {
+      renderArchive();
+      return;
+    }
     if (state.tasksOpen) {
       renderTasks();
       return;
@@ -866,6 +873,7 @@
       html += '        <div class="sort-menu more-menu-panel slide-up">';
       html += '          <button data-more-action="notes">' + icon("note", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">الملاحظات</span>' + (state.hasUnreadNotes ? '<span class="notif-dot" style="position:static;border:none;"></span>' : '') + '</button>';
       html += '          <button data-more-action="tasks">' + icon("tasks", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">المهام</span>' + (openTasksCount() > 0 ? '<span class="mono" style="font-size:11px;color:var(--amber);font-weight:800;">' + openTasksCount() + '</span>' : '') + '</button>';
+      html += '          <button data-more-action="archive">' + icon("box", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">أرشيف المهام</span></button>';
       html += '          <button data-more-action="workers" class="' + (state.workerTabsOpen ? "active" : "") + '">' + icon("users", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">الأشخاص</span></button>';
       html += '          <button data-more-action="logout">' + icon("logout", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">خروج</span></button>';
       html += '        </div>';
@@ -1673,7 +1681,7 @@
   }
 
   function deleteTask(id) {
-    var task = state.tasks.find(function (t) { return t.id === id; });
+    var task = state.tasks.find(function (t) { return t.id === id; }) || state.archive.find(function (t) { return t.id === id; });
     db.from("tasks").delete().eq("id", id).select().then(function (r) {
       if (r.error) {
         console.error(r.error);
@@ -1684,6 +1692,7 @@
         alert("المهمة ماتحذفاتش. من الأرجح خاصك تزيد صلاحية الحذف (delete policy) للأدمن فجدول tasks فSupabase.");
         return;
       }
+      if (state.archiveOpen) loadArchive();
     });
     if (task && task.media && task.media.length) {
       try {
@@ -1704,6 +1713,7 @@
     return {
       id: row.id, title: row.title, note: row.note,
       createdByName: row.created_by_name, createdAt: row.created_at, status: row.status,
+      completedByName: row.completed_by_name, completedAt: row.completed_at,
       media: row.media || []
     };
   }
@@ -1719,9 +1729,106 @@
   function subscribeTasks() {
     if (unsubTasks) { unsubTasks.unsubscribe(); unsubTasks = null; }
     loadTasks();
+    cleanupOldArchive();
     unsubTasks = db.channel("tasks_changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, function () { loadTasks(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, function () {
+        loadTasks();
+        if (state.archiveOpen) loadArchive();
+      })
       .subscribe();
+  }
+
+  // ---------- تنظيف تلقائي: حذف المهام المؤرشفة الأقدم من شهر ----------
+  var ARCHIVE_MAX_AGE_DAYS = 30;
+  function cleanupOldArchive() {
+    var cutoff = new Date(Date.now() - ARCHIVE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    db.from("tasks").delete().eq("status", "done").lt("completed_at", cutoff)
+      .then(function (r) { if (r.error) console.error(r.error); });
+  }
+
+  // ---------- صفحة أرشيف المهام (admin غير) ----------
+  function openArchive() {
+    state.archiveOpen = true;
+    state.moreMenuOpen = false;
+    render();
+    loadArchive();
+  }
+
+  function loadArchive() {
+    return db.from("tasks").select("*").eq("status", "done").order("completed_at", { ascending: false }).limit(200).then(function (res) {
+      if (res.error) { console.error(res.error); return; }
+      state.archive = res.data.map(taskRowToState);
+      render();
+    });
+  }
+
+  function renderArchive() {
+    var html = "";
+    html += '<div class="header">';
+    html += '  <div class="header-row">';
+    html += '    <div><h1>أرشيف المهام</h1><p class="sub">المهام المكملة</p></div>';
+    html += '    <button id="archiveBackBtn" class="helper-back-btn" aria-label="رجوع">' + icon("x", 20, 2.5) + '</button>';
+    html += '  </div>';
+    html += '</div>';
+
+    html += '<div class="list tasks-list">';
+    if (state.archive.length === 0) {
+      html += '<div class="empty">';
+      html += '  <div class="empty-circle">' + icon("box", 22) + '</div>';
+      html += '  <p class="title">مازال ماكاينة حتى مهمة مؤرشفة</p>';
+      html += '  <p class="sub">المهام المكملة غادي تبان هنا</p>';
+      html += '</div>';
+    } else {
+      state.archive.forEach(function (t) {
+        html += '<div class="task-card">';
+        html += '  <div class="task-body">';
+        html += '    <div class="task-meta"><span class="task-author">' + esc(t.createdByName) + '</span><span class="task-time">' + esc(timeAgo(t.createdAt)) + '</span></div>';
+        html += '    <div class="task-title">' + esc(t.title) + '</div>';
+        if (t.note) html += '    <div class="task-note">' + esc(t.note) + '</div>';
+        html += renderTaskMediaList(t.media);
+        html += '    <div class="task-note" style="color:var(--teal);margin-top:6px;">✓ كملها ' + esc(t.completedByName || "") + ' · ' + esc(timeAgo(t.completedAt)) + '</div>';
+        if (state.myRole === "admin") {
+          if (state.confirmDeleteTaskId === t.id) {
+            html += '    <div class="confirm-del task-confirm-del">';
+            html += '      <button class="yes" data-task-del-confirm="' + esc(t.id) + '">' + icon("check", 13) + ' حذف</button>';
+            html += '      <button class="no" data-task-del-cancel="' + esc(t.id) + '">' + icon("x", 13) + '</button>';
+            html += '    </div>';
+          } else {
+            html += '    <button class="del-btn task-del-btn" data-task-del-ask="' + esc(t.id) + '" aria-label="حذف المهمة">' + icon("trash", 15) + '</button>';
+          }
+        }
+        html += '  </div>';
+        html += '  <div class="task-actions">';
+        html += '    <button class="task-comment-btn" data-task-comments-open="' + esc(t.id) + '" aria-label="مناقشة">' + icon("chat", 15, 2.2) + '</button>';
+        html += '  </div>';
+        html += '</div>';
+      });
+    }
+    html += '</div>';
+
+    root.innerHTML = html;
+
+    var backBtn = document.getElementById("archiveBackBtn");
+    if (backBtn) backBtn.onclick = function () { state.archiveOpen = false; state.confirmDeleteTaskId = null; render(); };
+
+    document.querySelectorAll("[data-task-comments-open]").forEach(function (btn) {
+      btn.onclick = function () { openTaskComments(btn.getAttribute("data-task-comments-open")); };
+    });
+
+    document.querySelectorAll("[data-task-del-ask]").forEach(function (btn) {
+      btn.onclick = function () { state.confirmDeleteTaskId = btn.getAttribute("data-task-del-ask"); render(); };
+    });
+    document.querySelectorAll("[data-task-del-cancel]").forEach(function (btn) {
+      btn.onclick = function () { state.confirmDeleteTaskId = null; render(); };
+    });
+    document.querySelectorAll("[data-task-del-confirm]").forEach(function (btn) {
+      btn.onclick = function () {
+        var id = btn.getAttribute("data-task-del-confirm");
+        state.confirmDeleteTaskId = null;
+        deleteTask(id);
+        render();
+      };
+    });
   }
 
   // ---------- صفحة المناقشة (تعليقات المهمة) ----------
@@ -2336,6 +2443,7 @@
         state.moreMenuOpen = false;
         if (action === "notes") { state.notesOpen = true; markNotesSeen(); render(); }
         else if (action === "tasks") { state.tasksOpen = true; render(); }
+        else if (action === "archive") { openArchive(); }
         else if (action === "workers") { state.workerTabsOpen = !state.workerTabsOpen; render(); }
         else if (action === "logout") { render(); doLogout(); }
       };

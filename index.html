@@ -616,6 +616,8 @@
     notes: [],
     noteDraft: "",
     hasUnreadNotes: false,
+    hasNewTask: false,
+    hasScheduleUpdate: false,
     confirmDeleteNoteId: null,
     notePhotoUrl: null,
     notePhotoUploading: false,
@@ -701,6 +703,30 @@
   function markNotesSeen() {
     setNotesLastSeen(Date.now());
     state.hasUnreadNotes = false;
+  }
+
+  function tasksSeenKey() { return "hasbatSalla_tasksSeen_" + (state.myUid || ""); }
+  function getTasksLastSeen() {
+    try { return parseInt(localStorage.getItem(tasksSeenKey()) || "0", 10); } catch (e) { return 0; }
+  }
+  function setTasksLastSeen(ts) {
+    try { localStorage.setItem(tasksSeenKey(), String(ts)); } catch (e) {}
+  }
+  function markTasksSeen() {
+    setTasksLastSeen(Date.now());
+    state.hasNewTask = false;
+  }
+
+  function scheduleSeenKey() { return "hasbatSalla_scheduleSeen_" + (state.myUid || ""); }
+  function getScheduleLastSeen() {
+    try { return parseInt(localStorage.getItem(scheduleSeenKey()) || "0", 10); } catch (e) { return 0; }
+  }
+  function setScheduleLastSeen(ts) {
+    try { localStorage.setItem(scheduleSeenKey(), String(ts)); } catch (e) {}
+  }
+  function markScheduleSeen() {
+    setScheduleLastSeen(Date.now());
+    state.hasScheduleUpdate = false;
   }
 
   function workerByName(name) {
@@ -867,7 +893,8 @@
     chat: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>',
     repeat: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>',
     calendar: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h2"/><path d="M14 14h2"/><path d="M8 18h2"/></svg>',
-    layers: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>'
+    layers: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>',
+    bell: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
   };
   function icon(name, size, weight) {
     return ICONS[name].replace(/{s}/g, size || 20).replace(/{w}/g, weight || 2);
@@ -898,6 +925,8 @@
     html += '  <div class="header-row">';
     html += '    <div><h1>حساب الصالة</h1><p class="sub">صالة الحديد &middot; ' + esc(state.myName) + '</p></div>';
     html += '    <div class="header-actions">';
+    html += homeAlertIcons();
+    html += pushBellHtml("pushBellBtnPoly");
     html += '      <button id="polyLogoutBtn" class="icon-btn ghost" aria-label="خروج">' + icon("logout", 18, 2) + '</button>';
     html += '    </div>';
     html += '  </div>';
@@ -908,11 +937,14 @@
     html += '  <button data-poly-nav="tasks" class="card poly-menu-btn" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("tasks", 20, 2) + '<span style="flex:1;font-weight:700;">المهام</span>' + (openTasksCount() > 0 ? '<span class="mono" style="font-size:12px;color:var(--amber);font-weight:800;">' + openTasksCount() + '</span>' : '') + '</button>';
     html += '  <button data-poly-nav="archive" class="card poly-menu-btn" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("box", 20, 2) + '<span style="flex:1;font-weight:700;">أرشيف المهام</span></button>';
     if (state.appSettings.scheduleVisible) {
-      html += '  <button data-poly-nav="schedule" class="card poly-menu-btn" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("calendar", 20, 2) + '<span style="flex:1;font-weight:700;">الجدول</span></button>';
+      html += '  <button data-poly-nav="schedule" class="card poly-menu-btn" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("calendar", 20, 2) + '<span style="flex:1;font-weight:700;">الجدول</span>' + (state.hasScheduleUpdate ? '<span class="notif-dot" style="position:static;border:none;"></span>' : '') + '</button>';
     }
     html += '</div>';
 
     root.innerHTML = html;
+
+    bindHomeAlertCards();
+    bindPushBell("pushBellBtnPoly");
 
     var logoutBtn = document.getElementById("polyLogoutBtn");
     if (logoutBtn) logoutBtn.onclick = doLogout;
@@ -921,7 +953,7 @@
       btn.onclick = function () {
         var target = btn.getAttribute("data-poly-nav");
         if (target === "notes") { state.notesOpen = true; markNotesSeen(); render(); }
-        else if (target === "tasks") { state.tasksOpen = true; render(); }
+        else if (target === "tasks") { state.tasksOpen = true; markTasksSeen(); render(); }
         else if (target === "archive") { openArchive(); }
         else if (target === "schedule") { openSchedule(); }
       };
@@ -1000,15 +1032,17 @@
     if (state.myRole === "admin") {
       html += '      <button id="adminOpenBtn" class="icon-btn ghost" aria-label="إدارة الخدامين">' + icon("lock", 16, 2) + '</button>';
     }
+    html += homeAlertIcons();
+    html += pushBellHtml("pushBellBtnMain");
     html += '      <div class="more-wrap">';
-    html += '        <button id="moreMenuBtn" class="icon-btn ghost' + (state.moreMenuOpen ? " active-toggle" : "") + '" aria-label="المزيد">' + icon("more", 20, 2) + ((state.hasUnreadNotes || openTasksCount() > 0) ? '<span class="notif-dot"></span>' : '') + '</button>';
+    html += '        <button id="moreMenuBtn" class="icon-btn ghost' + (state.moreMenuOpen ? " active-toggle" : "") + '" aria-label="المزيد">' + icon("more", 20, 2) + ((state.hasUnreadNotes || openTasksCount() > 0 || (state.hasScheduleUpdate && (state.myRole === "admin" || state.appSettings.scheduleVisible))) ? '<span class="notif-dot"></span>' : '') + '</button>';
     if (state.moreMenuOpen) {
       html += '        <div class="sort-menu more-menu-panel slide-up">';
       html += '          <button data-more-action="notes">' + icon("note", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">الملاحظات</span>' + (state.hasUnreadNotes ? '<span class="notif-dot" style="position:static;border:none;"></span>' : '') + '</button>';
       html += '          <button data-more-action="tasks">' + icon("tasks", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">المهام</span>' + (openTasksCount() > 0 ? '<span class="mono" style="font-size:11px;color:var(--amber);font-weight:800;">' + openTasksCount() + '</span>' : '') + '</button>';
       html += '          <button data-more-action="archive">' + icon("box", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">أرشيف المهام</span></button>';
       if (state.myRole === "admin" || state.appSettings.scheduleVisible) {
-        html += '          <button data-more-action="schedule">' + icon("calendar", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">الجدول</span></button>';
+        html += '          <button data-more-action="schedule">' + icon("calendar", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">الجدول</span>' + (state.hasScheduleUpdate ? '<span class="notif-dot" style="position:static;border:none;"></span>' : '') + '</button>';
       }
       if (state.myRole === "admin") {
         html += '          <button data-more-action="recurring">' + icon("repeat", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">المهام الدورية</span></button>';
@@ -1118,6 +1152,9 @@
     var prevScrollTop = prevScrollEl ? prevScrollEl.scrollTop : null;
 
     root.innerHTML = html;
+
+    bindHomeAlertCards();
+    bindPushBell("pushBellBtnMain");
 
     if (prevScrollTop !== null) {
       var newScrollEl = root.querySelector(".list, .calc-page, .calc-wrap");
@@ -1475,7 +1512,111 @@
   }
 
   // ---------- صفحة المهام ----------
+  // ---------- إشعارات الهاتف (Web Push) ----------
+  var VAPID_PUBLIC_KEY = "BFYsqlejieZ2r_gNIuCzjS5N7FFGW1RxYSOKdNHiU0WjgZKoILEdO4ALnu1NpYzBovRsnG5WcRDTyfV4ZecJUfY";
+
+  function pushSupported() {
+    return ("serviceWorker" in navigator) && ("PushManager" in window) && (typeof Notification !== "undefined");
+  }
+
+  function urlBase64ToUint8Array(base64String) {
+    var padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    var base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    var rawData = atob(base64);
+    var outputArray = new Uint8Array(rawData.length);
+    for (var i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+    return outputArray;
+  }
+
+  function registerServiceWorker() {
+    if (!("serviceWorker" in navigator)) return Promise.resolve(null);
+    return navigator.serviceWorker.register("sw.js").catch(function (e) { console.error(e); return null; });
+  }
+
+  function savePushSubscription(sub) {
+    var json = sub.toJSON();
+    db.from("push_subscriptions").upsert({
+      endpoint: json.endpoint,
+      p256dh: json.keys.p256dh,
+      auth: json.keys.auth,
+      user_id: state.myUid,
+      worker_name: state.myName
+    }, { onConflict: "endpoint" }).then(function (r) { if (r.error) console.error(r.error); });
+  }
+
+  function enablePushNotifications() {
+    if (!pushSupported()) { alert("المتصفح ديالك ما كيدعمش الإشعارات"); return; }
+    Notification.requestPermission().then(function (perm) {
+      render();
+      if (perm !== "granted") return;
+      registerServiceWorker().then(function (reg) {
+        if (!reg) return;
+        reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        }).then(function (sub) {
+          savePushSubscription(sub);
+          render();
+        }).catch(function (e) { console.error(e); alert("تعذر تفعيل الإشعارات"); });
+      });
+    });
+  }
+
+  function disablePushNotifications() {
+    if (!("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.ready.then(function (reg) {
+      reg.pushManager.getSubscription().then(function (sub) {
+        if (!sub) { render(); return; }
+        var endpoint = sub.endpoint;
+        sub.unsubscribe().then(function () {
+          db.from("push_subscriptions").delete().eq("endpoint", endpoint).then(function () {});
+          render();
+        });
+      });
+    });
+  }
+
+  function pushBellHtml(idAttr) {
+    var granted = pushSupported() && Notification.permission === "granted";
+    return '<button id="' + idAttr + '" class="icon-btn ghost' + (granted ? " active-toggle" : "") + '" aria-label="الإشعارات">' + icon("bell", 18, 2) + '</button>';
+  }
+
+  function bindPushBell(idAttr) {
+    var btn = document.getElementById(idAttr);
+    if (!btn) return;
+    btn.onclick = function () {
+      if (!pushSupported()) { alert("المتصفح ديالك ما كيدعمش الإشعارات"); return; }
+      if (Notification.permission === "granted") disablePushNotifications();
+      else enablePushNotifications();
+    };
+  }
+
   function openTasksCount() { return state.tasks.length; }
+
+  function homeAlertIcons() {
+    var html = "";
+    if (!state.tasksOpen && state.hasNewTask) {
+      html += '<button class="icon-btn ghost" data-home-alert="tasks" aria-label="مهمة جديدة">' + icon("tasks", 18, 2) + '<span class="notif-dot"></span></button>';
+    }
+    if (!state.notesOpen && state.hasUnreadNotes) {
+      html += '<button class="icon-btn ghost" data-home-alert="notes" aria-label="ملاحظة جديدة">' + icon("note", 18, 2) + '<span class="notif-dot"></span></button>';
+    }
+    if (!state.scheduleOpen && state.hasScheduleUpdate && (state.myRole === "admin" || state.appSettings.scheduleVisible)) {
+      html += '<button class="icon-btn ghost" data-home-alert="schedule" aria-label="تبدل الجدول">' + icon("calendar", 18, 2) + '<span class="notif-dot"></span></button>';
+    }
+    return html;
+  }
+
+  function bindHomeAlertCards() {
+    document.querySelectorAll("[data-home-alert]").forEach(function (btn) {
+      btn.onclick = function () {
+        var target = btn.getAttribute("data-home-alert");
+        if (target === "tasks") { state.tasksOpen = true; markTasksSeen(); render(); }
+        else if (target === "notes") { state.notesOpen = true; markNotesSeen(); render(); }
+        else if (target === "schedule") { openSchedule(); }
+      };
+    });
+  }
 
   function renderTasks() {
     var html = "";
@@ -1570,7 +1711,7 @@
     root.innerHTML = html;
 
     var backBtn = document.getElementById("tasksBackBtn");
-    if (backBtn) backBtn.onclick = function () { state.tasksOpen = false; state.taskAddOpen = false; render(); };
+    if (backBtn) backBtn.onclick = function () { state.tasksOpen = false; state.taskAddOpen = false; markTasksSeen(); render(); };
 
     var addToggleBtn = document.getElementById("taskAddToggleBtn");
     if (addToggleBtn) addToggleBtn.onclick = function () {
@@ -1861,6 +2002,13 @@
     return db.from("tasks").select("*").eq("status", "open").order("created_at", { ascending: false }).limit(200).then(function (res) {
       if (res.error) { console.error(res.error); return; }
       state.tasks = res.data.map(taskRowToState);
+      if (!state.tasksOpen) {
+        var lastSeen = getTasksLastSeen();
+        var isNew = state.tasks.some(function (t) {
+          return t.createdAt && new Date(t.createdAt).getTime() > lastSeen;
+        });
+        state.hasNewTask = isNew;
+      }
       render();
     });
   }
@@ -2516,6 +2664,7 @@
   function openSchedule() {
     state.scheduleOpen = true;
     state.moreMenuOpen = false;
+    markScheduleSeen();
     render();
     loadSchedule();
     if (state.myRole === "admin") loadTemplates();
@@ -2525,6 +2674,17 @@
     return db.from("schedule_shifts").select("*").then(function (res) {
       if (res.error) { console.error(res.error); return; }
       state.schedule = res.data.map(shiftRowToState);
+      if (!state.scheduleOpen) {
+        var lastSeen = getScheduleLastSeen();
+        var latest = 0;
+        res.data.forEach(function (row) {
+          if (row.created_at) {
+            var t = new Date(row.created_at).getTime();
+            if (t > latest) latest = t;
+          }
+        });
+        state.hasScheduleUpdate = latest > lastSeen;
+      }
       render();
     });
   }
@@ -2807,6 +2967,7 @@
     if (backBtn) backBtn.onclick = function () {
       state.scheduleOpen = false; state.scheduleAddDay = null; state.scheduleError = "";
       state.templatesOpen = false; state.templateError = ""; state.confirmApplyTemplateId = null; state.confirmDeleteTemplateId = null;
+      markScheduleSeen();
       render();
     };
 
@@ -3202,7 +3363,7 @@
         var action = btn.getAttribute("data-more-action");
         state.moreMenuOpen = false;
         if (action === "notes") { state.notesOpen = true; markNotesSeen(); render(); }
-        else if (action === "tasks") { state.tasksOpen = true; render(); }
+        else if (action === "tasks") { state.tasksOpen = true; markTasksSeen(); render(); }
         else if (action === "archive") { openArchive(); }
         else if (action === "schedule") { openSchedule(); }
         else if (action === "recurring") { openRecurring(); }
@@ -3662,6 +3823,16 @@
       subscribeSchedule();
       subscribeAppSettings();
       render();
+    });
+  }
+
+  registerServiceWorker();
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener("message", function (event) {
+      if (event.data && event.data.type === "notification-click") {
+        // إشعار جا من الخارج — فتح الصفحة الرئيسية وخلي المستخدم يشوف البطاقات/النقط الجديدة
+        render();
+      }
     });
   }
 

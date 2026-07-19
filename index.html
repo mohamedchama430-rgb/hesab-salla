@@ -666,6 +666,17 @@
     scheduleError: "",
     confirmDeleteShiftId: null,
 
+    templatesOpen: false,
+    templates: [],
+    newTemplateName: "",
+    templateBusy: false,
+    templateError: "",
+    confirmApplyTemplateId: null,
+    confirmDeleteTemplateId: null,
+
+    appSettings: { scheduleVisible: true },
+    appSettingsBusy: false,
+
     moreMenuOpen: false,
   };
 
@@ -678,6 +689,7 @@
   var unsubTasks = null;
   var unsubComments = null;
   var unsubSchedule = null;
+  var unsubAppSettings = null;
 
   function notesSeenKey() { return "hasbatSalla_notesSeen_" + (state.myUid || ""); }
   function getNotesLastSeen() {
@@ -854,7 +866,8 @@
     stop: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>',
     chat: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>',
     repeat: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>',
-    calendar: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h2"/><path d="M14 14h2"/><path d="M8 18h2"/></svg>'
+    calendar: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h2"/><path d="M14 14h2"/><path d="M8 18h2"/></svg>',
+    layers: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>'
   };
   function icon(name, size, weight) {
     return ICONS[name].replace(/{s}/g, size || 20).replace(/{w}/g, weight || 2);
@@ -894,7 +907,9 @@
     html += '  <button data-poly-nav="notes" class="card poly-menu-btn" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("note", 20, 2) + '<span style="flex:1;font-weight:700;">الملاحظات</span>' + (state.hasUnreadNotes ? '<span class="notif-dot" style="position:static;border:none;"></span>' : '') + '</button>';
     html += '  <button data-poly-nav="tasks" class="card poly-menu-btn" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("tasks", 20, 2) + '<span style="flex:1;font-weight:700;">المهام</span>' + (openTasksCount() > 0 ? '<span class="mono" style="font-size:12px;color:var(--amber);font-weight:800;">' + openTasksCount() + '</span>' : '') + '</button>';
     html += '  <button data-poly-nav="archive" class="card poly-menu-btn" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("box", 20, 2) + '<span style="flex:1;font-weight:700;">أرشيف المهام</span></button>';
-    html += '  <button data-poly-nav="schedule" class="card poly-menu-btn" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("calendar", 20, 2) + '<span style="flex:1;font-weight:700;">الجدول</span></button>';
+    if (state.appSettings.scheduleVisible) {
+      html += '  <button data-poly-nav="schedule" class="card poly-menu-btn" style="display:flex;align-items:center;gap:10px;text-align:right;width:100%;">' + icon("calendar", 20, 2) + '<span style="flex:1;font-weight:700;">الجدول</span></button>';
+    }
     html += '</div>';
 
     root.innerHTML = html;
@@ -992,7 +1007,9 @@
       html += '          <button data-more-action="notes">' + icon("note", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">الملاحظات</span>' + (state.hasUnreadNotes ? '<span class="notif-dot" style="position:static;border:none;"></span>' : '') + '</button>';
       html += '          <button data-more-action="tasks">' + icon("tasks", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">المهام</span>' + (openTasksCount() > 0 ? '<span class="mono" style="font-size:11px;color:var(--amber);font-weight:800;">' + openTasksCount() + '</span>' : '') + '</button>';
       html += '          <button data-more-action="archive">' + icon("box", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">أرشيف المهام</span></button>';
-      html += '          <button data-more-action="schedule">' + icon("calendar", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">الجدول</span></button>';
+      if (state.myRole === "admin" || state.appSettings.scheduleVisible) {
+        html += '          <button data-more-action="schedule">' + icon("calendar", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">الجدول</span></button>';
+      }
       if (state.myRole === "admin") {
         html += '          <button data-more-action="recurring">' + icon("repeat", 16, 2) + ' <span style="flex:1;text-align:right;margin-right:6px;">المهام الدورية</span></button>';
       }
@@ -2501,6 +2518,7 @@
     state.moreMenuOpen = false;
     render();
     loadSchedule();
+    if (state.myRole === "admin") loadTemplates();
   }
 
   function loadSchedule() {
@@ -2517,6 +2535,38 @@
     unsubSchedule = db.channel("schedule_changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "schedule_shifts" }, function () { loadSchedule(); })
       .subscribe();
+  }
+
+  function loadAppSettings() {
+    return db.from("app_settings").select("*").eq("id", 1).maybeSingle().then(function (res) {
+      if (res.error) { console.error(res.error); return; }
+      if (res.data) state.appSettings.scheduleVisible = !!res.data.schedule_visible;
+      render();
+    });
+  }
+
+  function subscribeAppSettings() {
+    if (unsubAppSettings) { unsubAppSettings.unsubscribe(); unsubAppSettings = null; }
+    loadAppSettings();
+    unsubAppSettings = db.channel("app_settings_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, function () { loadAppSettings(); })
+      .subscribe();
+  }
+
+  function toggleScheduleVisible() {
+    var next = !state.appSettings.scheduleVisible;
+    state.appSettings.scheduleVisible = next;
+    state.appSettingsBusy = true;
+    render();
+    db.from("app_settings").update({ schedule_visible: next, updated_at: new Date().toISOString() }).eq("id", 1).then(function (r) {
+      state.appSettingsBusy = false;
+      if (r.error) {
+        console.error(r.error);
+        state.appSettings.scheduleVisible = !next;
+        alert("وقع مشكل: " + (r.error.message || ""));
+      }
+      render();
+    });
   }
 
   function toggleNewShiftWorker(name) {
@@ -2561,16 +2611,126 @@
     });
   }
 
+  // ---------- استعمالات محفوظة (قوالب) — الأدمن يقدر يحفظ الجدول الحالي ويرجع يطبقو من بعد ----------
+  function loadTemplates() {
+    return db.from("schedule_templates").select("*").order("created_at", { ascending: false }).then(function (res) {
+      if (res.error) { console.error(res.error); return; }
+      state.templates = res.data;
+      render();
+    });
+  }
+
+  function saveCurrentAsTemplate() {
+    var name = state.newTemplateName.trim();
+    if (!name) { state.templateError = "عطي سمية للقالب"; render(); return; }
+    if (!state.schedule.length) { state.templateError = "الجدول الحالي فارغ"; render(); return; }
+    var snapshot = state.schedule.map(function (s) {
+      return {
+        day_of_week: s.day, start_time: s.start, end_time: s.end,
+        workers: s.workers.map(function (w) { return { name: w.name, position: w.position }; })
+      };
+    });
+    state.templateBusy = true;
+    state.templateError = "";
+    render();
+    db.from("schedule_templates").insert({ name: name, shifts: snapshot }).then(function (r) {
+      state.templateBusy = false;
+      if (r.error) { state.templateError = r.error.message || "وقع مشكل"; render(); return; }
+      state.newTemplateName = "";
+      loadTemplates();
+    });
+  }
+
+  function applyTemplate(id) {
+    var tpl = state.templates.filter(function (t) { return t.id === id; })[0];
+    if (!tpl) return;
+    state.templateBusy = true;
+    render();
+    db.from("schedule_shifts").delete().not("id", "is", null).then(function (delRes) {
+      if (delRes.error) {
+        state.templateBusy = false; state.confirmApplyTemplateId = null;
+        console.error(delRes.error); alert("وقع مشكل: " + (delRes.error.message || "")); render(); return;
+      }
+      var rows = (tpl.shifts || []).map(function (s) {
+        return { day_of_week: s.day_of_week, start_time: s.start_time, end_time: s.end_time, workers: s.workers || [] };
+      });
+      state.confirmApplyTemplateId = null;
+      if (!rows.length) { state.templateBusy = false; loadSchedule(); return; }
+      db.from("schedule_shifts").insert(rows).then(function (insRes) {
+        state.templateBusy = false;
+        if (insRes.error) { console.error(insRes.error); alert("وقع مشكل: " + (insRes.error.message || "")); }
+        loadSchedule();
+      });
+    });
+  }
+
+  function deleteTemplate(id) {
+    db.from("schedule_templates").delete().eq("id", id).then(function (r) {
+      if (r.error) { console.error(r.error); alert("تعذر الحذف: " + (r.error.message || "")); return; }
+      loadTemplates();
+    });
+  }
+
   function renderSchedule() {
     var html = "";
     html += '<div class="header">';
     html += '  <div class="header-row">';
     html += '    <div><h1>الجدول</h1><p class="sub">استعمال الزمن ديال الخدامين</p></div>';
     html += '    <div class="header-actions">';
+    if (state.myRole === "admin") {
+      html += '      <button id="templatesToggleBtn" class="icon-btn ghost' + (state.templatesOpen ? " active-toggle" : "") + '" aria-label="الاستعمالات المحفوظة">' + icon("layers", 18, 2) + '</button>';
+    }
     html += '      <button id="scheduleBackBtn" class="helper-back-btn" aria-label="رجوع">' + icon("x", 20, 2.5) + '</button>';
     html += '    </div>';
     html += '  </div>';
     html += '</div>';
+
+    if (state.myRole === "admin") {
+      html += '<div style="padding:16px 16px 0;">';
+      html += '  <div class="day-section" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">';
+      html += '    <span style="font-size:13px;font-weight:700;">' + (state.appSettings.scheduleVisible ? 'الجدول ظاهر للرسبسيو والبولفانو' : 'الجدول مخفي، غير الأدمن كيشوفو') + '</span>';
+      html += '    <button id="scheduleVisibleToggleBtn" class="pos-btn' + (state.appSettings.scheduleVisible ? ' active' : '') + '"' + (state.appSettingsBusy ? ' disabled' : '') + '>' + (state.appSettings.scheduleVisible ? 'إخفاء' : 'إظهار') + '</button>';
+      html += '  </div>';
+      html += '</div>';
+    }
+
+    if (state.templatesOpen && state.myRole === "admin") {
+      html += '<div style="padding:16px 16px 0;">';
+      html += '  <div class="day-section">';
+      html += '    <h3 class="day-section-title">احفظ الاستعمال الحالي كقالب</h3>';
+      html += '    <div class="shift-add-form">';
+      html += '      <input type="text" id="newTemplateNameInput" class="mono" style="direction:rtl;border-radius:10px;padding:10px 12px;font-size:14px;font-weight:600;background:var(--panelAlt);border:1px solid var(--border);color:var(--text);outline:none;" placeholder="سمية القالب (مثلا: سيمانة شمسو)" value="' + esc(state.newTemplateName) + '" />';
+      html += '      <button class="confirm-btn" style="width:100%;" id="saveTemplateBtn"' + (state.templateBusy ? " disabled" : "") + '>' + (state.templateBusy ? "جاري الحفظ..." : "حفظ كقالب") + '</button>';
+      if (state.templateError) html += '      <p class="auth-error">' + esc(state.templateError) + '</p>';
+      html += '    </div>';
+      html += '  </div>';
+
+      html += '  <div class="day-section">';
+      html += '    <h3 class="day-section-title">القوالب المحفوظة</h3>';
+      if (!state.templates.length) {
+        html += '    <p class="sub" style="margin:0;">مازال ما كاين حتى قالب محفوظ</p>';
+      } else {
+        state.templates.forEach(function (t) {
+          html += '    <div class="shift-row" style="flex-wrap:wrap;">';
+          html += '      <span style="flex:1;font-weight:700;font-size:13px;min-width:100px;">' + esc(t.name) + '</span>';
+          if (state.confirmApplyTemplateId === t.id) {
+            html += '      <button class="clear-btn" style="color:var(--teal);" data-template-apply-confirm="' + esc(t.id) + '">أكّد التطبيق</button>';
+            html += '      <button class="clear-btn" data-template-apply-cancel="1">إلغاء</button>';
+          } else {
+            html += '      <button class="clear-btn" style="color:var(--teal);" data-template-apply-ask="' + esc(t.id) + '">طبّق</button>';
+          }
+          if (state.confirmDeleteTemplateId === t.id) {
+            html += '      <button class="clear-btn" data-template-del-confirm="' + esc(t.id) + '">أكّد الحذف</button>';
+            html += '      <button class="clear-btn" data-template-del-cancel="1">إلغاء</button>';
+          } else {
+            html += '      <button class="clear-btn" data-template-del-ask="' + esc(t.id) + '">حذف</button>';
+          }
+          html += '    </div>';
+        });
+      }
+      html += '  </div>';
+      html += '</div>';
+    }
 
     html += '<div class="list">';
     WEEKDAY_NAMES.forEach(function (dayName, day) {
@@ -2644,7 +2804,43 @@
     root.innerHTML = html;
 
     var backBtn = document.getElementById("scheduleBackBtn");
-    if (backBtn) backBtn.onclick = function () { state.scheduleOpen = false; state.scheduleAddDay = null; state.scheduleError = ""; render(); };
+    if (backBtn) backBtn.onclick = function () {
+      state.scheduleOpen = false; state.scheduleAddDay = null; state.scheduleError = "";
+      state.templatesOpen = false; state.templateError = ""; state.confirmApplyTemplateId = null; state.confirmDeleteTemplateId = null;
+      render();
+    };
+
+    var scheduleVisibleToggleBtn = document.getElementById("scheduleVisibleToggleBtn");
+    if (scheduleVisibleToggleBtn) scheduleVisibleToggleBtn.onclick = toggleScheduleVisible;
+
+    var templatesToggleBtn = document.getElementById("templatesToggleBtn");    if (templatesToggleBtn) templatesToggleBtn.onclick = function () {
+      state.templatesOpen = !state.templatesOpen;
+      if (state.templatesOpen) loadTemplates();
+      render();
+    };
+    var templateNameInput = document.getElementById("newTemplateNameInput");
+    if (templateNameInput) templateNameInput.oninput = function (e) { state.newTemplateName = e.target.value; };
+    var saveTemplateBtn = document.getElementById("saveTemplateBtn");
+    if (saveTemplateBtn) saveTemplateBtn.onclick = saveCurrentAsTemplate;
+
+    document.querySelectorAll("[data-template-apply-ask]").forEach(function (btn) {
+      btn.onclick = function () { state.confirmApplyTemplateId = btn.getAttribute("data-template-apply-ask"); render(); };
+    });
+    document.querySelectorAll("[data-template-apply-cancel]").forEach(function (btn) {
+      btn.onclick = function () { state.confirmApplyTemplateId = null; render(); };
+    });
+    document.querySelectorAll("[data-template-apply-confirm]").forEach(function (btn) {
+      btn.onclick = function () { applyTemplate(btn.getAttribute("data-template-apply-confirm")); };
+    });
+    document.querySelectorAll("[data-template-del-ask]").forEach(function (btn) {
+      btn.onclick = function () { state.confirmDeleteTemplateId = btn.getAttribute("data-template-del-ask"); render(); };
+    });
+    document.querySelectorAll("[data-template-del-cancel]").forEach(function (btn) {
+      btn.onclick = function () { state.confirmDeleteTemplateId = null; render(); };
+    });
+    document.querySelectorAll("[data-template-del-confirm]").forEach(function (btn) {
+      btn.onclick = function () { deleteTemplate(btn.getAttribute("data-template-del-confirm")); state.confirmDeleteTemplateId = null; };
+    });
 
     document.querySelectorAll("[data-shift-add-open]").forEach(function (btn) {
       btn.onclick = function () {
@@ -2663,7 +2859,13 @@
       btn.onclick = function () { toggleNewShiftWorker(btn.getAttribute("data-shift-worker")); };
     });
     document.querySelectorAll("[data-shift-worker-pos]").forEach(function (btn) {
-      btn.onclick = function () { setShiftWorkerPosition(btn.getAttribute("data-shift-worker-pos"), btn.getAttribute("data-pos")); };
+      btn.onclick = function () {
+        var name = btn.getAttribute("data-shift-worker-pos");
+        var pos = btn.getAttribute("data-pos");
+        var cur = state.newShiftWorkers.filter(function (w) { return w.name === name; })[0];
+        var nextPos = (cur && cur.position === pos) ? null : pos;
+        setShiftWorkerPosition(name, nextPos);
+      };
     });
 
     document.querySelectorAll("[data-shift-add-confirm]").forEach(function (btn) {
@@ -3424,6 +3626,7 @@
     if (unsubTasks) { unsubTasks.unsubscribe(); unsubTasks = null; }
     if (unsubComments) { unsubComments.unsubscribe(); unsubComments = null; }
     if (unsubSchedule) { unsubSchedule.unsubscribe(); unsubSchedule = null; }
+    if (unsubAppSettings) { unsubAppSettings.unsubscribe(); unsubAppSettings = null; }
   }
 
   function onSignedIn(user) {
@@ -3457,6 +3660,7 @@
       subscribeNotes();
       subscribeTasks();
       subscribeSchedule();
+      subscribeAppSettings();
       render();
     });
   }

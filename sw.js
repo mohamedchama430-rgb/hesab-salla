@@ -1,49 +1,46 @@
-const CACHE_NAME = "hesab-salla-v3";
-const CORE_ASSETS = [
-  "index.html",
-  "manifest.json",
-  "icon-192.png",
-  "icon-512.png"
-];
+// Service Worker ديال حساب الصالة — كيستقبل الإشعارات (push) ويبانها، وكيودي المستخدم للتطبيق كي يضغط عليها
 
 self.addEventListener("install", function (event) {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(function (cache) {
-      return cache.addAll(CORE_ASSETS);
-    })
-  );
   self.skipWaiting();
 });
 
 self.addEventListener("activate", function (event) {
-  event.waitUntil(
-    caches.keys().then(function (keys) {
-      return Promise.all(
-        keys
-          .filter(function (key) { return key !== CACHE_NAME; })
-          .map(function (key) { return caches.delete(key); })
-      );
-    })
-  );
-  self.clients.claim();
+  event.waitUntil(self.clients.claim());
 });
 
-self.addEventListener("fetch", function (event) {
-  if (event.request.method !== "GET") return;
+self.addEventListener("push", function (event) {
+  var data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    data = { title: "حساب الصالة", body: event.data ? event.data.text() : "" };
+  }
 
-  event.respondWith(
-    fetch(event.request)
-      .then(function (response) {
-        if (response && response.status === 200) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(function (cache) {
-            cache.put(event.request, clone);
-          });
+  var title = data.title || "حساب الصالة";
+  var options = {
+    body: data.body || "",
+    tag: data.tag || "hasbatsalla-notif",
+    renotify: true,
+    data: { url: data.url || "./" }
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", function (event) {
+  event.notification.close();
+  var targetUrl = (event.notification.data && event.notification.data.url) || "./";
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (clientList) {
+      for (var i = 0; i < clientList.length; i++) {
+        var client = clientList[i];
+        if ("focus" in client) {
+          client.postMessage({ type: "notification-click", url: targetUrl });
+          return client.focus();
         }
-        return response;
-      })
-      .catch(function () {
-        return caches.match(event.request);
-      })
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+    })
   );
 });
